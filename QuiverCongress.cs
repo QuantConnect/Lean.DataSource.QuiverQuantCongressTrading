@@ -33,12 +33,12 @@ namespace QuantConnect.DataSource
     public class QuiverCongress : BaseData
     {
         /// <summary>
-        /// The date the transaction was reported
+        /// The date the transaction was reported. Value will always exist.
         /// </summary>
         [ProtoMember(10)]
         [JsonProperty(PropertyName = "ReportDate")]
         [JsonConverter(typeof(DateTimeJsonConverter), "yyyy-MM-dd")]
-        public DateTime ReportDate { get; set; }
+        public DateTime? ReportDate { get; set; }
 
         /// <summary>
         /// The date the transaction took place
@@ -116,7 +116,7 @@ namespace QuantConnect.DataSource
             House = (Congress)Enum.Parse(typeof(Congress), csv[5], true);
 
             Period = TimeSpan.FromDays(1);
-            Time = ReportDate;
+            Time = ReportDate.Value;
         }
 
         /// <summary>

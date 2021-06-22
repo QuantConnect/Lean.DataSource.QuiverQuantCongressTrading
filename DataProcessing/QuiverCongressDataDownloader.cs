@@ -151,13 +151,16 @@ namespace QuantConnect.DataProcessing
                                     {
                                         // We don't have enough information to disambiguate whether this transaction,
                                         // known as an "Exchange", is the acquisition or dumping of an asset.
-                                        if (congressTrade.Transaction == OrderDirection.Hold)
+                                        // Also, ReportDate might be null, but we use it for setting the EndTime
+                                        // of the QuiverCongress type. So if it doesn't exist, we don't know
+                                        // when the data was made available to us.
+                                        if (congressTrade.Transaction == OrderDirection.Hold || congressTrade.ReportDate == null)
                                         {
                                             continue;
                                         }
 
                                         csvContents.Add(string.Join(",",
-                                            $"{congressTrade.ReportDate.ToStringInvariant("yyyyMMdd")}",
+                                            $"{congressTrade.ReportDate.Value.ToStringInvariant("yyyyMMdd")}",
                                             $"{congressTrade.TransactionDate.ToStringInvariant("yyyyMMdd")}",
                                             $"{congressTrade.Representative.Trim()}",
                                             $"{congressTrade.Transaction}",
