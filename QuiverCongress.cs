@@ -24,7 +24,7 @@ using System;
 using System.IO;
 using static QuantConnect.StringExtensions;
 
-namespace QuantConnect.DataLibrary
+namespace QuantConnect.DataSource
 {
     /// <summary>
     /// Personal stock transactions by U.S. Representatives

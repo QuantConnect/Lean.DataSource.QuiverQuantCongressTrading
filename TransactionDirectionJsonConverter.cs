@@ -17,7 +17,7 @@ using QuantConnect.Orders;
 using QuantConnect.Util;
 using System;
 
-namespace QuantConnect.DataLibrary
+namespace QuantConnect.DataSource
 {
     /// <summary>
     /// Converts Quiver Quantitative <see cref="TransactionDirection"/> to <see cref="OrderDirection"/>

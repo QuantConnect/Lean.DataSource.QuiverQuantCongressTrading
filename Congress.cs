@@ -13,7 +13,7 @@
  * limitations under the License.
 */
 
-namespace QuantConnect.DataLibrary
+namespace QuantConnect.DataSource
 {
     /// <summary>
     /// United States of America Legislative Branch House of Congress
