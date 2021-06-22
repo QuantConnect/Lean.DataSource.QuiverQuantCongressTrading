@@ -43,6 +43,13 @@ namespace QuantConnect.DataSource
         {
             switch (value.ToLowerInvariant())
             {
+                // Exchange transactions are transactions where one stock is
+                // exchanged for another. This could be the dumping of an asset,
+                // or the acquisition of an asset. Since we don't have enough
+                // data to disambiguiate which direction the transaction goes,
+                // let's return `OrderDirection.Hold` and filter those out.
+                case "exchange":
+                    return OrderDirection.Hold;
                 case "purchase":
                 case "buy":
                     return OrderDirection.Buy;

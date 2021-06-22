@@ -148,6 +148,13 @@ namespace QuantConnect.DataProcessing
 
                                     foreach (var congressTrade in congressTrades)
                                     {
+                                        // We don't have enough information to disambiguate whether this transaction,
+                                        // known as an "Exchange", is the acquisition or dumping of an asset.
+                                        if (congressTrade.Transaction == OrderDirection.Hold)
+                                        {
+                                            continue;
+                                        }
+
                                         csvContents.Add(string.Join(",",
                                             $"{congressTrade.ReportDate.ToStringInvariant("yyyyMMdd")}",
                                             $"{congressTrade.TransactionDate.ToStringInvariant("yyyyMMdd")}",
