@@ -17,6 +17,7 @@ using Newtonsoft.Json;
 using QuantConnect.Configuration;
 using QuantConnect.DataSource;
 using QuantConnect.Logging;
+using QuantConnect.Orders;
 using QuantConnect.Util;
 using System;
 using System.Collections.Generic;
