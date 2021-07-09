@@ -33,6 +33,11 @@ namespace QuantConnect.DataSource
     public class QuiverCongress : BaseData
     {
         /// <summary>
+        /// Data source ID
+        /// </summary>
+        public static int DataSourceId { get; } = 2000;
+
+        /// <summary>
         /// The date the transaction was reported. Value will always exist.
         /// </summary>
         [ProtoMember(10)]
