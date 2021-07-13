@@ -83,6 +83,7 @@ namespace QuantConnect.DataProcessing
         public bool Run()
         {
             var stopwatch = Stopwatch.StartNew();
+            var today = DateTime.UtcNow.Date;
 
             try
             {
@@ -156,6 +157,12 @@ namespace QuantConnect.DataProcessing
                                         // when the data was made available to us.
                                         if (congressTrade.Transaction == OrderDirection.Hold || congressTrade.ReportDate == null)
                                         {
+                                            continue;
+                                        }
+
+                                        if (congressTrade.ReportDate.Value.Date == today)
+                                        {
+                                            Log.Trace($"Encountered data from today for {ticker}: {today:yyyy-MM-dd} - Skipping");
                                             continue;
                                         }
 
