@@ -74,7 +74,17 @@ namespace QuantConnect.DataProcessing
             _indexGate = new RateGate(10, TimeSpan.FromSeconds(1.1));
 
             Directory.CreateDirectory(_destinationFolder);
-        }
+        };
+
+        /// <summary>
+        /// creates an IEnumerable for a range of dates
+        /// </summary>
+        /// <returns>IEnumerable for a range of dates</returns>
+        public IEnumerable<DateTime> EachDay(DateTime from, DateTime thru)
+        {
+            for(var day = from.Date; day.Date <= thru.Date; day = day.AddDays(1))
+                yield return day;
+        };
 
         /// <summary>
         /// Runs the instance of the object.
@@ -97,6 +107,12 @@ namespace QuantConnect.DataProcessing
                     $"QuiverCongressDataDownloader.Run(): Start processing {count.ToStringInvariant()} companies");
 
                 var tasks = new List<Task>();
+                var minDate = today;
+
+                // This is the dictionary that
+                // key: Date
+                // value: List<String> csv content of that specific date
+                IDictionary<DateTime, List<string>> MastercsvContents = new Dictionary<DateTime, List<string>>();
 
                 foreach (var company in companies)
                 {
@@ -160,19 +176,30 @@ namespace QuantConnect.DataProcessing
                                             continue;
                                         }
 
-                                        if (congressTrade.ReportDate.Value.Date == today)
+                                        var curTdate = congressTrade.ReportDate.Value.Date;
+
+                                        if (curTdate == today)
                                         {
                                             Log.Trace($"Encountered data from today for {ticker}: {today:yyyy-MM-dd} - Skipping");
                                             continue;
                                         }
 
-                                        csvContents.Add(string.Join(",",
+                                        if( DateTime.Compare(curTdate, minDate) < 0){
+                                            minDate = curTdate;
+                                        }
+
+                                        var curRow = string.Join(",",
                                             $"{congressTrade.ReportDate.Value.ToStringInvariant("yyyyMMdd")}",
                                             $"{congressTrade.TransactionDate.ToStringInvariant("yyyyMMdd")}",
                                             $"{congressTrade.Representative.Trim()}",
                                             $"{congressTrade.Transaction}",
                                             $"{congressTrade.Amount}",
-                                            $"{congressTrade.House}"));
+                                            $"{congressTrade.House}");
+
+                                        csvContents.Add(curRow);
+                                        // we are adding to a dictionary the current transaction date as 
+                                        // the key and adding the current row to the existing List<String>
+                                        MastercsvContents[curTdate].Add(curRow);
                                     }
 
                                     if (csvContents.Count != 0)
@@ -202,6 +229,18 @@ namespace QuantConnect.DataProcessing
                 {
                     Task.WaitAll(tasks.ToArray());
                     tasks.Clear();
+                    // we will save the files by group dates
+                    // tasks are all done and the MastercsvContents is filled need to seperate the 
+                    // collected data by dates they occured
+                    foreach (DateTime day in EachDay(minDate, today)){
+                        var d = new List<string>();
+                        //second for loop to collect all prior days up to the current day variable
+                        foreach (DateTime daytwo in EachDay(minDate, day)){
+                            d.AddRange(MastercsvContents[daytwo]);
+                        }
+                        SaveContentToFile(Path.Combine(_destinationFolder, "universe"), day.ToString(), d);
+                    }
+
                 }
             }
             catch (Exception e)
