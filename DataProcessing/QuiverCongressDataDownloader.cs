@@ -19,6 +19,8 @@ using QuantConnect.DataSource;
 using QuantConnect.Logging;
 using QuantConnect.Orders;
 using QuantConnect.Util;
+using QuantConnect.Data.Market;
+using QuantConnect.Data;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -94,6 +96,9 @@ namespace QuantConnect.DataProcessing
         {
             var stopwatch = Stopwatch.StartNew();
             var today = DateTime.UtcNow.Date;
+
+            var mapFileProvider = new LocalZipMapFileProvider();
+            mapFileProvider.Initialize(new DefaultDataProvider());
 
             try
             {
@@ -188,7 +193,11 @@ namespace QuantConnect.DataProcessing
                                             minDate = curTdate;
                                         }
 
+                                        var sid = SecurityIdentifier.GenerateEquity(congressTrade.Ticker, Market.USA, true, mapFileProvider, curTdate);
+
                                         var curRow = string.Join(",",
+                                            $"{sid}",
+                                            $"{ticker}",
                                             $"{congressTrade.ReportDate.Value.ToStringInvariant("yyyyMMdd")}",
                                             $"{congressTrade.TransactionDate.ToStringInvariant("yyyyMMdd")}",
                                             $"{congressTrade.Representative.Trim()}",

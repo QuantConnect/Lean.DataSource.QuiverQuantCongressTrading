@@ -22,6 +22,8 @@ using QuantConnect.Util;
 using QuantConnect.Orders;
 using System;
 using System.IO;
+using System.Collections.Generic;
+using System.Globalization;
 using static QuantConnect.StringExtensions;
 
 namespace QuantConnect.DataSource
@@ -113,13 +115,14 @@ namespace QuantConnect.DataSource
         {
             // ReportDate[0], TransactionDate[1], Representative[2], Transaction[3], Amount[4],House[5]
             var csv = csvLine.Split(',');
-            ReportDate = Parse.DateTimeExact(csv[0], "yyyyMMdd");
-            TransactionDate = Parse.DateTimeExact(csv[1], "yyyyMMdd");
-            Representative = csv[2];
-            Transaction = (OrderDirection)Enum.Parse(typeof(OrderDirection), csv[3], true);
-            Amount = csv[4].IfNotNullOrEmpty<decimal?>(s => Parse.Decimal(s));
-            House = (Congress)Enum.Parse(typeof(Congress), csv[5], true);
+            ReportDate = Parse.DateTimeExact(csv[2], "yyyyMMdd");
+            TransactionDate = Parse.DateTimeExact(csv[3], "yyyyMMdd");
+            Representative = csv[4];
+            Transaction = (OrderDirection)Enum.Parse(typeof(OrderDirection), csv[5], true);
+            Amount = csv[6].IfNotNullOrEmpty<decimal?>(s => Parse.Decimal(s));
+            House = (Congress)Enum.Parse(typeof(Congress), csv[7], true);
 
+            Symbol = new Symbol(SecurityIdentifier.Parse(csv[0]), csv[1]),
             Period = TimeSpan.FromDays(1);
             Time = ReportDate.Value;
         }
