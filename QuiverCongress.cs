@@ -122,7 +122,7 @@ namespace QuantConnect.DataSource
             Amount = csv[6].IfNotNullOrEmpty<decimal?>(s => Parse.Decimal(s));
             House = (Congress)Enum.Parse(typeof(Congress), csv[7], true);
 
-            Symbol = new Symbol(SecurityIdentifier.Parse(csv[0]), csv[1]),
+            Symbol = new Symbol(SecurityIdentifier.Parse(csv[0]), csv[1]);
             Period = TimeSpan.FromDays(1);
             Time = ReportDate.Value;
         }

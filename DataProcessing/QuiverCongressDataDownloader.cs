@@ -14,15 +14,19 @@
 */
 
 using Newtonsoft.Json;
+using QuantConnect;
 using QuantConnect.Configuration;
+using QuantConnect.Data.Auxiliary;
 using QuantConnect.DataSource;
 using QuantConnect.Logging;
 using QuantConnect.Orders;
 using QuantConnect.Util;
+using QuantConnect.Lean.Engine.DataFeeds;
 using QuantConnect.Data.Market;
 using QuantConnect.Data;
 using System;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -76,7 +80,7 @@ namespace QuantConnect.DataProcessing
             _indexGate = new RateGate(10, TimeSpan.FromSeconds(1.1));
 
             Directory.CreateDirectory(_destinationFolder);
-        };
+        }
 
         /// <summary>
         /// creates an IEnumerable for a range of dates
@@ -86,7 +90,7 @@ namespace QuantConnect.DataProcessing
         {
             for(var day = from.Date; day.Date <= thru.Date; day = day.AddDays(1))
                 yield return day;
-        };
+        }
 
         /// <summary>
         /// Runs the instance of the object.
@@ -142,6 +146,7 @@ namespace QuantConnect.DataProcessing
 
                     // Makes sure we don't overrun Quiver rate limits accidentally
                     _indexGate.WaitToProceed();
+                    var sid = SecurityIdentifier.GenerateEquity(ticker, Market.USA, true, mapFileProvider, today);
 
                     tasks.Add(
                         HttpRequester($"historical/congresstrading/{ticker}")
@@ -192,8 +197,6 @@ namespace QuantConnect.DataProcessing
                                         if( DateTime.Compare(curTdate, minDate) < 0){
                                             minDate = curTdate;
                                         }
-
-                                        var sid = SecurityIdentifier.GenerateEquity(congressTrade.Ticker, Market.USA, true, mapFileProvider, curTdate);
 
                                         var curRow = string.Join(",",
                                             $"{sid}",
