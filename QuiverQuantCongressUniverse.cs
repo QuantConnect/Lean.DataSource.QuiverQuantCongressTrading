@@ -20,6 +20,8 @@ using System.Globalization;
 using System.IO;
 using NodaTime;
 using QuantConnect.Data;
+using QuantConnect.Orders;
+using static QuantConnect.StringExtensions;
 
 namespace QuantConnect.DataSource
 {
@@ -31,7 +33,7 @@ namespace QuantConnect.DataSource
         /// <summary>
         /// ReportDate
         /// </summary>
-        public DateTime ReportDate { get; set; }
+        public DateTime ReportDate => Time;
 
         /// <summary>
         /// TransactionDate
@@ -101,20 +103,19 @@ namespace QuantConnect.DataSource
         public override BaseData Reader(SubscriptionDataConfig config, string line, DateTime date, bool isLiveMode)
         {
             var csv = line.Split(',');
-            var followers = Parse.Int(csv[2]);
+            var amount = csv[5].IfNotNullOrEmpty<decimal?>(s => decimal.Parse(s, NumberStyles.Any, CultureInfo.InvariantCulture));
 
             return new QuiverQuantCongressUniverse
             {
-                ReportDate = Parse.DateTimeExact(csv[2], "yyyyMMdd"),
-                TransactionDate = Parse.DateTimeExact(csv[3], "yyyyMMdd"),
-                Representative = csv[4],
-                Transaction = (OrderDirection)Enum.Parse(typeof(OrderDirection), csv[5], true),
-                Amount = decimal.Parse(csv[6], NumberStyles.Any, CultureInfo.InvariantCulture),
-                House = (Congress)Enum.Parse(typeof(Congress), csv[7], true),
+                TransactionDate = Parse.DateTimeExact(csv[2], "yyyyMMdd"),
+                Representative = csv[3],
+                Transaction = (OrderDirection)Enum.Parse(typeof(OrderDirection), csv[4], true),
+                Amount = amount,
+                House = (Congress)Enum.Parse(typeof(Congress), csv[6], true),
 
                 Symbol = new Symbol(SecurityIdentifier.Parse(csv[0]), csv[1]),
                 Time = date - Period,
-                Value = followers
+                Value = amount ?? 0
             };
         }
 
@@ -123,7 +124,12 @@ namespace QuantConnect.DataSource
         /// </summary>
         public override string ToString()
         {
-            return $"{Symbol} - Representative: {Followers} - Amount: {Amount}";
+            return Invariant($"{Symbol}({ReportDate}) :: ") +
+                   Invariant($"Transaction Date: {TransactionDate} ") +
+                   Invariant($"Representative: {Representative} ") +
+                   Invariant($"House: {House} ") +
+                   Invariant($"Transaction: {Transaction} ") +
+                   Invariant($"Amount: {Amount}");
         }
 
         /// <summary>
@@ -151,3 +157,4 @@ namespace QuantConnect.DataSource
             return TimeZones.Chicago;
         }
     }
+}

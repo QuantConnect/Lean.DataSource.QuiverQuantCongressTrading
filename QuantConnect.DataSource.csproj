@@ -18,11 +18,12 @@
     <Compile Remove="tests\**" />
     <EmbeddedResource Remove="tests\**" />
     <None Remove="tests\**" />
-    <Compile Remove="Demonstration.cs" />
+    <Compile Remove="DataProcessing\**" />
+    <EmbeddedResource Remove="DataProcessing\**" />
+    <None Remove="DataProcessing\**" />
+    <Compile Remove="QuiverCongressAlgorithm.cs" />
+    <Compile Remove="QuiverQuantCongressUniverseSelectionAlgorithm.cs" />
     <None Remove=".gitignore" />
-    <None Remove="process.sample.ipynb" />
-    <None Remove="process.sample.py" />
-    <None Remove="process.sample.sh" />
   </ItemGroup>
 
 </Project>
