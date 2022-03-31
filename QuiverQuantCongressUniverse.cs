@@ -84,7 +84,7 @@ namespace QuantConnect.DataSource
                     Globals.DataFolder,
                     "alternative",
                     "quiver",
-                    "congress",
+                    "congresstrading",
                     "universe",
                     $"{date.ToStringInvariant(DateFormat.EightCharacter)}.csv"
                 ),
