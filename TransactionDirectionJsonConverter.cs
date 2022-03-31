@@ -48,16 +48,15 @@ namespace QuantConnect.DataSource
                 // or the acquisition of an asset. Since we don't have enough
                 // data to disambiguiate which direction the transaction goes,
                 // let's return `OrderDirection.Hold` and filter those out.
-                case "exchange":
-                    return OrderDirection.Hold;
                 case "purchase":
                 case "buy":
                     return OrderDirection.Buy;
                 case "sale":
                 case "sell":
                     return OrderDirection.Sell;
+                case "exchange":
                 default:
-                    throw new ArgumentException($"The provided order direction \"{value}\" is not valid.");
+                    return OrderDirection.Hold;
             }
         }
     }

@@ -13,15 +13,16 @@
  * limitations under the License.
 */
 
+using System;
+using System.Globalization;
+using System.IO;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 using NodaTime;
 using ProtoBuf;
 using QuantConnect.Data;
-using QuantConnect.Util;
 using QuantConnect.Orders;
-using System;
-using System.IO;
+using QuantConnect.Util;
 using static QuantConnect.StringExtensions;
 
 namespace QuantConnect.DataSource
@@ -87,16 +88,12 @@ namespace QuantConnect.DataSource
         /// The period of time that occurs between the starting time and ending time of the data point
         /// </summary>
         [ProtoMember(16)]
-        public TimeSpan Period { get; set; }
+        public TimeSpan Period { get; set; } = TimeSpan.FromDays(1);
 
         /// <summary>
         /// The time the data point ends at and becomes available to the algorithm
         /// </summary>
-        public override DateTime EndTime
-        {
-            get { return Time + Period; }
-            set { Time = value - Period; }
-        }
+        public override DateTime EndTime => Time + Period;
 
         /// <summary>
         /// Required for successful Json.NET deserialization
@@ -117,10 +114,9 @@ namespace QuantConnect.DataSource
             TransactionDate = Parse.DateTimeExact(csv[1], "yyyyMMdd");
             Representative = csv[2];
             Transaction = (OrderDirection)Enum.Parse(typeof(OrderDirection), csv[3], true);
-            Amount = csv[4].IfNotNullOrEmpty<decimal?>(s => Parse.Decimal(s));
+            Amount = csv[4].IfNotNullOrEmpty<decimal?>(s => decimal.Parse(s, NumberStyles.Any, CultureInfo.InvariantCulture));
             House = (Congress)Enum.Parse(typeof(Congress), csv[5], true);
 
-            Period = TimeSpan.FromDays(1);
             Time = ReportDate.Value;
         }
 

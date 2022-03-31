@@ -13,13 +13,8 @@
  * limitations under the License.
 */
 
-using Newtonsoft.Json;
-using QuantConnect.Configuration;
-using QuantConnect.DataSource;
-using QuantConnect.Logging;
-using QuantConnect.Orders;
-using QuantConnect.Util;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
@@ -30,6 +25,14 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
+using QuantConnect.Configuration;
+using QuantConnect.Data.Auxiliary;
+using QuantConnect.DataSource;
+using QuantConnect.Lean.Engine.DataFeeds;
+using QuantConnect.Logging;
+using QuantConnect.Orders;
+using QuantConnect.Util;
 
 namespace QuantConnect.DataProcessing
 {
@@ -40,17 +43,15 @@ namespace QuantConnect.DataProcessing
     {
         public const string VendorName = "quiver";
         public const string VendorDataName = "congresstrading";
-        
+        private const int MaxRetries = 5;
+
         private readonly string _destinationFolder;
+        private readonly string _universeFolder;
         private readonly string _clientKey;
-        private readonly int _maxRetries = 5;
-        private static readonly List<char> _defunctDelimiters = new List<char>
-        {
-            '-',
-            '_'
-        };
+        private readonly bool _canCreateUniverseFiles;
+        private static readonly List<char> _defunctDelimiters = new() { '-', '_' };
         
-        private readonly JsonSerializerSettings _jsonSerializerSettings = new JsonSerializerSettings
+        private readonly JsonSerializerSettings _jsonSerializerSettings = new()
         {
             DateTimeZoneHandling = DateTimeZoneHandling.Utc
         };
@@ -68,12 +69,15 @@ namespace QuantConnect.DataProcessing
         public QuiverCongressDataDownloader(string destinationFolder, string apiKey = null)
         {
             _destinationFolder = Path.Combine(destinationFolder, VendorDataName);
+            _universeFolder = Path.Combine(_destinationFolder, "universe");
             _clientKey = apiKey ?? Config.Get("quiver-auth-token");
+            _canCreateUniverseFiles = Directory.Exists(Path.Combine(Globals.DataFolder, "equity", "usa", "map_files"));
 
             // Represents rate limits of 10 requests per 1.1 second
             _indexGate = new RateGate(10, TimeSpan.FromSeconds(1.1));
 
             Directory.CreateDirectory(_destinationFolder);
+            Directory.CreateDirectory(_universeFolder);
         }
 
         /// <summary>
@@ -85,18 +89,20 @@ namespace QuantConnect.DataProcessing
             var stopwatch = Stopwatch.StartNew();
             var today = DateTime.UtcNow.Date;
 
+            var mapFileProvider = new LocalZipMapFileProvider();
+            mapFileProvider.Initialize(new DefaultDataProvider());
+
             try
             {
                 var companies = GetCompanies().Result.DistinctBy(x => x.Ticker).ToList();
                 var count = companies.Count;
-                var currentPercent = 0.05;
-                var percent = 0.05;
-                var i = 0;
+                var companiesCompleted = 0;
 
-                Log.Trace(
-                    $"QuiverCongressDataDownloader.Run(): Start processing {count.ToStringInvariant()} companies");
+                Log.Trace($"QuiverCongressDataDownloader.Run(): Start processing {count.ToStringInvariant()} companies");
 
                 var tasks = new List<Task>();
+                
+                var tempData = new ConcurrentDictionary<string, ConcurrentQueue<string>>();
 
                 foreach (var company in companies)
                 {
@@ -106,33 +112,24 @@ namespace QuantConnect.DataProcessing
                     // we don't convert tickers with `-`s into the format we can successfully
                     // index mapfiles with.
                     var quiverTicker = company.Ticker;
-                    string ticker;
 
-
-                    if (!TryNormalizeDefunctTicker(quiverTicker, out ticker))
+                    if (!TryNormalizeDefunctTicker(quiverTicker, out var ticker))
                     {
-                        Log.Error(
-                            $"QuiverCongressDataDownloader(): Defunct ticker {quiverTicker} is unable to be parsed. Continuing...");
+                        Log.Error($"QuiverCongressDataDownloader(): Defunct ticker {quiverTicker} is unable to be parsed. Continuing...");
                         continue;
                     }
 
                     // Begin processing ticker with a normalized value
                     Log.Trace($"QuiverCongressDataDownloader.Run(): Processing {ticker}");
 
-                    // Makes sure we don't overrun Quiver rate limits accidentally
-                    _indexGate.WaitToProceed();
-
                     tasks.Add(
                         HttpRequester($"historical/congresstrading/{ticker}")
                             .ContinueWith(
                                 y =>
                                 {
-                                    i++;
-
                                     if (y.IsFaulted)
                                     {
-                                        Log.Error(
-                                            $"QuiverCongressDataDownloader.Run(): Failed to get data for {company}");
+                                        Log.Error($"QuiverCongressDataDownloader.Run(): Failed to get data for {company}");
                                         return;
                                     }
 
@@ -166,13 +163,25 @@ namespace QuantConnect.DataProcessing
                                             continue;
                                         }
 
-                                        csvContents.Add(string.Join(",",
-                                            $"{congressTrade.ReportDate.Value.ToStringInvariant("yyyyMMdd")}",
+                                        var date = congressTrade.ReportDate.Value.ToStringInvariant("yyyyMMdd");
+
+                                        var curRow = string.Join(",",
                                             $"{congressTrade.TransactionDate.ToStringInvariant("yyyyMMdd")}",
                                             $"{congressTrade.Representative.Trim()}",
                                             $"{congressTrade.Transaction}",
-                                            $"{congressTrade.Amount}",
-                                            $"{congressTrade.House}"));
+                                            $"{congressTrade.Amount.ToStringInvariant()}",
+                                            $"{congressTrade.House}");
+
+                                        csvContents.Add($"{date},{curRow}");
+
+                                        if (!_canCreateUniverseFiles)
+                                            continue;
+
+                                        var sid = SecurityIdentifier.GenerateEquity(ticker, Market.USA, true, mapFileProvider,
+                                            congressTrade.ReportDate.Value);
+
+                                        var queue = tempData.GetOrAdd(date, new ConcurrentQueue<string>());
+                                        queue.Enqueue($"{sid},{ticker},{curRow}");
                                     }
 
                                     if (csvContents.Count != 0)
@@ -180,27 +189,25 @@ namespace QuantConnect.DataProcessing
                                         SaveContentToFile(_destinationFolder, ticker, csvContents);
                                     }
 
-                                    var percentageDone = i / count;
-                                    if (percentageDone >= currentPercent)
+                                    var newCompaniesCompleted = Interlocked.Increment(ref companiesCompleted);
+                                    if (newCompaniesCompleted % 100 == 0)
                                     {
-                                        Log.Trace(
-                                            $"QuiverCongressDataDownloader.Run(): {percentageDone.ToStringInvariant("P2")} complete");
-                                        currentPercent += percent;
+                                        Log.Trace($"QuiverQuantTwitterFollowersDataDownloader.Run(): {newCompaniesCompleted}/{count} complete");
                                     }
                                 }
                             )
                     );
 
-                    if (tasks.Count == 10)
-                    {
-                        Task.WaitAll(tasks.ToArray());
-                        tasks.Clear();
-                    }
-                }
+                    if (tasks.Count != 10) continue;
 
-                if (tasks.Count != 0)
-                {
                     Task.WaitAll(tasks.ToArray());
+
+                    foreach (var kvp in tempData)
+                    {
+                        SaveContentToFile(_universeFolder, kvp.Key, kvp.Value);
+                    }
+
+                    tempData.Clear();
                     tasks.Clear();
                 }
             }
@@ -240,7 +247,7 @@ namespace QuantConnect.DataProcessing
         /// <exception cref="Exception">Failed to get data after exceeding retries</exception>
         private async Task<string> HttpRequester(string url)
         {
-            for (var retries = 1; retries <= _maxRetries; retries++)
+            for (var retries = 1; retries <= MaxRetries; retries++)
             {
                 try
                 {
@@ -255,6 +262,10 @@ namespace QuantConnect.DataProcessing
 
                         // Responses are in JSON: you need to specify the HTTP header Accept: application/json
                         client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+                        // Makes sure we don't overrun Quiver rate limits accidentally
+                        _indexGate.WaitToProceed();
+
                         var response = await client.GetAsync(Uri.EscapeUriString(url));
                         if (response.StatusCode == HttpStatusCode.NotFound)
                         {
@@ -280,58 +291,42 @@ namespace QuantConnect.DataProcessing
                 }
                 catch (Exception e)
                 {
-                    Log.Error(e, $"QuiverCongressDataDownloader.HttpRequester(): Error at HttpRequester. (retry {retries}/{_maxRetries})");
+                    Log.Error(e, $"QuiverCongressDataDownloader.HttpRequester(): Error at HttpRequester. (retry {retries}/{MaxRetries})");
                     Thread.Sleep(1000);
                 }
             }
 
-            throw new Exception($"Request failed with no more retries remaining (retry {_maxRetries}/{_maxRetries})");
+            throw new Exception($"Request failed with no more retries remaining (retry {MaxRetries}/{MaxRetries})");
         }
 
         /// <summary>
         /// Saves contents to disk, deleting existing zip files
         /// </summary>
         /// <param name="destinationFolder">Final destination of the data</param>
-        /// <param name="ticker">Stock ticker</param>
+        /// <param name="name">File name</param>
         /// <param name="contents">Contents to write</param>
-        private void SaveContentToFile(string destinationFolder, string ticker, IEnumerable<string> contents)
+        private void SaveContentToFile(string destinationFolder, string name, IEnumerable<string> contents)
         {
-            ticker = ticker.ToLowerInvariant();
-            var bkPath = Path.Combine(destinationFolder, $"{ticker}-bk.csv");
-            var finalPath = Path.Combine(destinationFolder, $"{ticker}.csv");
-            var finalFileExists = File.Exists(finalPath);
+            var finalPath = Path.Combine(destinationFolder, $"{name.ToLowerInvariant()}.csv");
 
             var lines = new HashSet<string>(contents);
-            if (finalFileExists)
+            if (File.Exists(finalPath))
             {
-                Log.Trace($"QuiverCongressDataDownloader.SaveContentToZipFile(): Adding to existing file: {finalPath}");
                 foreach (var line in File.ReadAllLines(finalPath))
                 {
                     lines.Add(line);
                 }
             }
-            else
-            {
-                Log.Trace($"QuiverCongressDataDownloader.SaveContentToZipFile(): Writing to file: {finalPath}");
-            }
 
-            var finalLines = lines
-                .OrderBy(x => DateTime.ParseExact(x.Split(',').First(), "yyyyMMdd", CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal))
-                .ToList();
+            var finalLines = destinationFolder.Contains("universe")
+                ? lines.OrderBy(x => x)
+                : lines.OrderBy(x => DateTime.ParseExact(x.Split(',').First(), "yyyyMMdd",
+                    CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal));
 
             var tempPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.tmp");
             File.WriteAllLines(tempPath, finalLines);
             var tempFilePath = new FileInfo(tempPath);
-            if (finalFileExists)
-            {
-                tempFilePath.Replace(finalPath,bkPath);
-                var bkFilePath = new FileInfo(bkPath);
-                bkFilePath.Delete();
-            }
-            else
-            {
-                tempFilePath.MoveTo(finalPath);
-            }
+            tempFilePath.MoveTo(finalPath, true);
         }
 
         /// <summary>
