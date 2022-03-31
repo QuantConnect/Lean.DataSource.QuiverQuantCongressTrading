@@ -19,6 +19,7 @@ using System.Linq;
 using QuantConnect.Data;
 using QuantConnect.Data.UniverseSelection;
 using QuantConnect.DataSource;
+using QuantConnect.Orders;
 
 namespace QuantConnect.Algorithm.CSharp
 {
@@ -34,7 +35,7 @@ namespace QuantConnect.Algorithm.CSharp
             SetCash(100000);
 
             // add a custom universe data source (defaults to usa-equity)
-            AddUniverse<QuiverQuantCongresssUniverse>("QuiverQuantCongresssUniverse", Resolution.Daily, data =>
+            AddUniverse<QuiverQuantCongressUniverse>("QuiverQuantCongresssUniverse", Resolution.Daily, data =>
             {
                 foreach (var datum in data)
                 {
@@ -43,7 +44,7 @@ namespace QuantConnect.Algorithm.CSharp
 
                 // define our selection criteria
                 return from d in data 
-                    where d.Amount > 200000 && d.Transaction == "Purchase" 
+                    where d.Amount > 200000 && d.Transaction == OrderDirection.Buy 
                     select d.Symbol;
             });
         }
