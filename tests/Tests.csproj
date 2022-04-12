@@ -6,6 +6,7 @@
   <ItemGroup>
     <Compile Include="..\QuiverCongressAlgorithm.cs" Link="QuiverCongressAlgorithm.cs" />
     <Compile Include="..\QuiverQuantCongressUniverseSelectionAlgorithm.cs" Link="QuiverQuantCongressUniverseSelectionAlgorithm.cs" />
+    <Content Include="..\QuiverQuantCongressUniverseSelectionAlgorithm.py" Link="QuiverQuantCongressUniverseSelectionAlgorithm.py" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="protobuf-net" Version="3.0.29" />
