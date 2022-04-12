@@ -23,6 +23,7 @@
     <None Remove="DataProcessing\**" />
     <Compile Remove="QuiverCongressAlgorithm.cs" />
     <Compile Remove="QuiverQuantCongressUniverseSelectionAlgorithm.cs" />
+    <None Remove="QuiverQuantCongressUniverseSelectionAlgorithm.py" />
     <None Remove=".gitignore" />
   </ItemGroup>
 
