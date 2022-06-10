@@ -18,7 +18,6 @@ using System;
 using ProtoBuf;
 using System.IO;
 using System.Linq;
-using ProtoBuf.Meta;
 using Newtonsoft.Json;
 using NUnit.Framework;
 using QuantConnect.Data;
@@ -59,26 +58,6 @@ namespace QuantConnect.DataLibrary.Tests
             var result = JsonConvert.DeserializeObject(serialized, type);
 
             AssertAreEqual(expected, result);
-        }
-
-        [Test]
-        public void ProtobufRoundTrip()
-        {
-            var expected = CreateNewInstance();
-            var type = expected.GetType();
-
-            RuntimeTypeModel.Default[typeof(BaseData)].AddSubType(2000, type);
-
-            using (var stream = new MemoryStream())
-            {
-                Serializer.Serialize(stream, expected);
-
-                stream.Position = 0;
-
-                var result = Serializer.Deserialize(type, stream);
-
-                AssertAreEqual(expected, result, filterByCustomAttributes: true);
-            }
         }
 
         [Test]
