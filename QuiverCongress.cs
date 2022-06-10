@@ -19,7 +19,6 @@ using System.IO;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 using NodaTime;
-using ProtoBuf;
 using QuantConnect.Data;
 using QuantConnect.Orders;
 using QuantConnect.Util;
@@ -30,9 +29,10 @@ namespace QuantConnect.DataSource
     /// <summary>
     /// Personal stock transactions by U.S. Representatives
     /// </summary>
-    [ProtoContract(SkipConstructor = true)]
     public class QuiverCongress : BaseData
     {
+        private static readonly TimeSpan _period = TimeSpan.FromDays(1);
+
         /// <summary>
         /// Data source ID
         /// </summary>
@@ -41,7 +41,6 @@ namespace QuantConnect.DataSource
         /// <summary>
         /// The date the transaction was reported. Value will always exist.
         /// </summary>
-        [ProtoMember(10)]
         [JsonProperty(PropertyName = "ReportDate")]
         [JsonConverter(typeof(DateTimeJsonConverter), "yyyy-MM-dd")]
         public DateTime? ReportDate { get; set; }
@@ -49,7 +48,6 @@ namespace QuantConnect.DataSource
         /// <summary>
         /// The date the transaction took place
         /// </summary>
-        [ProtoMember(11)]
         [JsonProperty(PropertyName = "TransactionDate")]
         [JsonConverter(typeof(DateTimeJsonConverter), "yyyy-MM-dd")]
         public DateTime TransactionDate { get; set; }
@@ -57,14 +55,12 @@ namespace QuantConnect.DataSource
         /// <summary>
         /// The Representative making the transaction
         /// </summary>
-        [ProtoMember(12)]
         [JsonProperty(PropertyName = "Representative")]
         public string Representative { get; set; }
 
         /// <summary>
         /// The type of transaction
         /// </summary>
-        [ProtoMember(13)]
         [JsonProperty(PropertyName = "Transaction")]
         [JsonConverter(typeof(TransactionDirectionJsonConverter))]
         public OrderDirection Transaction { get; set; }
@@ -72,28 +68,20 @@ namespace QuantConnect.DataSource
         /// <summary>
         /// The amount of the transaction (in USD)
         /// </summary>
-        [ProtoMember(14)]
         [JsonProperty(PropertyName = "Amount")]
         public decimal? Amount { get; set; }
 
         /// <summary>
         /// The House of Congress that the trader belongs to
         /// </summary>
-        [ProtoMember(15)]
         [JsonProperty(PropertyName = "House")]
         [JsonConverter(typeof(StringEnumConverter))]
         public Congress House { get; set; }
         
         /// <summary>
-        /// The period of time that occurs between the starting time and ending time of the data point
-        /// </summary>
-        [ProtoMember(16)]
-        public TimeSpan Period { get; set; } = TimeSpan.FromDays(1);
-
-        /// <summary>
         /// The time the data point ends at and becomes available to the algorithm
         /// </summary>
-        public override DateTime EndTime => Time + Period;
+        public override DateTime EndTime => Time + _period;
 
         /// <summary>
         /// Required for successful Json.NET deserialization
