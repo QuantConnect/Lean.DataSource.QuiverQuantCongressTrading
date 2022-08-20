@@ -20,6 +20,7 @@ using System.Linq;
 using Newtonsoft.Json;
 using NUnit.Framework;
 using QuantConnect.Data;
+using QuantConnect.Data.UniverseSelection;
 using QuantConnect.DataSource;
 using QuantConnect.Orders;
 
@@ -38,7 +39,7 @@ namespace QuantConnect.DataLibrary.Tests
         {
             // This information is not factual and is only used for testing purposes
             var content = "{ \"ReportDate\": \"2020-01-01\", \"TransactionDate\": \"2019-12-23\", \"Representative\": \"Cory Gardner\", \"Transaction\": \"Purchase\", \"Amount\": 100, \"House\": \"Senate\" }";
-            var data = JsonConvert.DeserializeObject<QuiverCongress>(content, _jsonSerializerSettings);
+            var data = JsonConvert.DeserializeObject<QuiverCongressDataPoint>(content, _jsonSerializerSettings);
 
             Assert.AreEqual(new DateTime(2020, 1, 1), data.ReportDate);
             Assert.AreEqual(new DateTime(2019, 12, 23), data.TransactionDate);
@@ -68,6 +69,15 @@ namespace QuantConnect.DataLibrary.Tests
             AssertAreEqual(expected, result);
         }
 
+        [Test]
+        public void CloneCollection()
+        {
+            var expected = CreateNewCollectionInstance();
+            var result = expected.Clone();
+
+            AssertAreEqual(expected, result);
+        }
+
         private void AssertAreEqual(object expected, object result, bool filterByCustomAttributes = false)
         {
             foreach (var propertyInfo in expected.GetType().GetProperties())
@@ -86,7 +96,7 @@ namespace QuantConnect.DataLibrary.Tests
 
         private BaseData CreateNewInstance()
         {
-            return new QuiverCongress
+            return new QuiverCongressDataPoint
             {
                 Symbol = Symbol.Empty,
                 Time = DateTime.Today,
@@ -99,6 +109,41 @@ namespace QuantConnect.DataLibrary.Tests
                 
                 Amount = 15001m,
                 House = Congress.Senate,
+            };
+        }
+
+        private BaseDataCollection CreateNewCollectionInstance()
+        {
+            return new QuiverCongress
+            {
+                new QuiverCongressDataPoint
+                {
+                    Symbol = Symbol.Empty,
+                    Time = DateTime.Today,
+                    DataType = MarketDataType.Base,
+                    
+                    ReportDate = DateTime.Today,
+                    TransactionDate = DateTime.Today.AddDays(-60),
+                    Representative = "Ronald Lee Wyden",
+                    Transaction = OrderDirection.Buy,
+                    
+                    Amount = 15001m,
+                    House = Congress.Senate,
+                },
+                new QuiverCongressDataPoint
+                {
+                    Symbol = Symbol.Empty,
+                    Time = DateTime.Today,
+                    DataType = MarketDataType.Base,
+                    
+                    ReportDate = DateTime.Today,
+                    TransactionDate = DateTime.Today.AddDays(-60),
+                    Representative = "Ronald Lee Wyden",
+                    Transaction = OrderDirection.Buy,
+                    
+                    Amount = 15001m,
+                    House = Congress.Senate,
+                }
             };
         }
     }

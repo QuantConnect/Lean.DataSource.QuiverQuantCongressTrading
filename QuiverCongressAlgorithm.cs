@@ -14,6 +14,7 @@
  *
 */
 
+using System.Linq;
 using QuantConnect.Data;
 using QuantConnect.Util;
 using QuantConnect.Orders;
@@ -50,14 +51,19 @@ namespace QuantConnect.DataLibrary.Tests
             var data = slice.Get<QuiverCongress>();
             if (!data.IsNullOrEmpty())
             {
-                // based on the custom data property we will buy or short the underlying equity
-                if (data[_customDataSymbol].Transaction == OrderDirection.Buy)
+                foreach (var kvp in data)
                 {
-                    SetHoldings(_equitySymbol, 1);
-                }
-                else if (data[_customDataSymbol].Transaction == OrderDirection.Sell)
-                {
-                    SetHoldings(_equitySymbol, -1);
+                    var directionTotal = kvp.Value.Sum(point => (int)((QuiverCongressDataPoint)point).Transaction);
+                    
+                    // based on the custom data property we will buy or short the underlying equity
+                    if (directionTotal > 0)
+                    {
+                        SetHoldings(kvp.Key, 1);
+                    }
+                    else if (directionTotal < 0)
+                    {
+                        SetHoldings(kvp.Key, -1);
+                    }
                 }
             }
         }

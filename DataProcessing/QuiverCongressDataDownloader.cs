@@ -141,7 +141,7 @@ namespace QuantConnect.DataProcessing
                                     }
 
                                     var congressTrades =
-                                        JsonConvert.DeserializeObject<List<QuiverCongress>>(result,
+                                        JsonConvert.DeserializeObject<List<QuiverCongressDataPoint>>(result,
                                             _jsonSerializerSettings);
                                     var csvContents = new List<string>();
 
