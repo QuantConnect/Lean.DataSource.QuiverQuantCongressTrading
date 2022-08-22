@@ -48,7 +48,7 @@ namespace QuantConnect.DataSource
                 "congresstrading",
                 $"{config.Symbol.Value.ToLowerInvariant()}.csv"
             );
-            return new SubscriptionDataSource(source, SubscriptionTransportMedium.LocalFile, FileFormat.Csv);
+            return new SubscriptionDataSource(source, SubscriptionTransportMedium.LocalFile, FileFormat.FoldingCollection);
         }
 
         /// <summary>
