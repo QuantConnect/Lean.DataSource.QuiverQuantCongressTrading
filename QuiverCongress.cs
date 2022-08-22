@@ -81,9 +81,9 @@ namespace QuantConnect.DataSource
         }
 
         /// <summary>
-        /// Formats a string with QuiverCNBC data
+        /// Formats a string with the Quiver Congress information.
         /// </summary>
-        /// <returns>string containing QuiverCNBC information</returns>
+        /// <returns>string containing Quiver Congress information</returns>
         public override string ToString()
         {
             return $"[{string.Join(",", Data.Select(data => data.ToString()))}]";
