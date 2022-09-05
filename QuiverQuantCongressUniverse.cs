@@ -151,7 +151,7 @@ namespace QuantConnect.DataSource
         /// <returns>The <see cref="T:NodaTime.DateTimeZone" /> of this data type</returns>
         public override DateTimeZone DataTimeZone()
         {
-            return TimeZones.Chicago;
+            return TimeZones.Utc;
         }
     }
 }

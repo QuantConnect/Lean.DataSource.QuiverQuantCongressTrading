@@ -85,7 +85,6 @@ namespace QuantConnect.DataSource
         /// <summary>
         /// Creates a new instance of QuiverCongressDataPoint
         /// </summary>
-        /// <param name="csvLine">CSV line</param>
         public QuiverCongressDataPoint()
         {
         }
