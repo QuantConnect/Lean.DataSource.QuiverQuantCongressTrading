@@ -15,9 +15,9 @@
 */
 
 using System;
-using System.IO;
 using System.Linq;
 using Newtonsoft.Json;
+using NodaTime;
 using NUnit.Framework;
 using QuantConnect.Data;
 using QuantConnect.Data.UniverseSelection;
@@ -29,6 +29,8 @@ namespace QuantConnect.DataLibrary.Tests
     [TestFixture]
     public class QuiverCongressTests
     {
+        private readonly Symbol _symbol = new(SecurityIdentifier.Parse("AAPL R735QTJ8XC9X"), "AAPL");
+
         private readonly JsonSerializerSettings _jsonSerializerSettings = new JsonSerializerSettings
         {
             DateTimeZoneHandling = DateTimeZoneHandling.Utc
@@ -38,17 +40,47 @@ namespace QuantConnect.DataLibrary.Tests
         public void DeserializeRawQuiverCongressJson()
         {
             // This information is not factual and is only used for testing purposes
-            var content = "{ \"ReportDate\": \"2020-01-01\", \"TransactionDate\": \"2019-12-23\", \"Representative\": \"Cory Gardner\", \"Transaction\": \"Purchase\", \"Amount\": 100, \"House\": \"Senate\" }";
+            var content = "{ \"Ticker\": \"CVS\", \"TickerType\": \"Stock\",\"Company\": \"CVS Corp\",\"Traded\": \"2023-08-22\",\"Transaction\": \"Sale (Full)\",\"Trade_Size_USD\": \"$1,001 - $15,000\",\"Status\": \"New\",\"Subholding\": null,\"Description\": null,\"Name\": \"Gardner, Cory\",\"Filed\": \"2023-09-18\",\"Party\": \"R\",\"District\": null,\"Chamber\": \"Senate\",\"Comments\": null,\"excess_return\": \"5.894026562437\",\"State\": \"Alaska\"}";
             var data = JsonConvert.DeserializeObject<QuiverCongressDataPoint>(content, _jsonSerializerSettings);
 
-            Assert.AreEqual(new DateTime(2020, 1, 1), data.ReportDate);
-            Assert.AreEqual(new DateTime(2019, 12, 23), data.TransactionDate);
-            Assert.AreEqual("Cory Gardner", data.Representative);
-            Assert.AreEqual(OrderDirection.Buy, data.Transaction);
-            Assert.AreEqual(100m, data.Amount);
-            Assert.AreEqual(Congress.Senate, data.House);
+            AssertData(data);
         }
-        
+
+        [Test]
+        public void ReaderTest()
+        {
+            // This information is not factual and is only used for testing purposes
+            var content = "20230918,20230822,Gardner; Cory,Sell,15001,50000,Senate,Republican,,Alaska";
+            var instance = CreateNewInstance();
+            var config = new SubscriptionDataConfig(typeof(QuiverCongressDataPoint), _symbol, Resolution.Daily,
+                DateTimeZone.Utc, DateTimeZone.Utc, false, false, false);
+            var data = instance.Reader(config, content, DateTime.UtcNow, false);
+            AssertData(data as QuiverCongressDataPoint);
+            
+        }
+
+        [Test]
+        public void UniverseReaderTest()
+        {
+            // This information is not factual and is only used for testing purposes
+            var reportDate = new DateTime(2023, 9, 18);
+            var content = "AAPL R735QTJ8XC9X,AAPL,20230822,Gardner; Cory,Sell,15001,50000,Senate,Republican,,Alaska";
+            var instance = new QuiverQuantCongressUniverse();
+            var config = new SubscriptionDataConfig(typeof(QuiverQuantCongressUniverse), Symbol.None, Resolution.Daily,
+                DateTimeZone.Utc, DateTimeZone.Utc, false, false, false);
+            var data = instance.Reader(config, content, reportDate, false) as QuiverQuantCongressUniverse;
+
+            Assert.AreEqual(reportDate, data.ReportDate);
+            Assert.AreEqual(_symbol, data.Symbol);
+            Assert.AreEqual(new DateTime(2023, 8, 22), data.TransactionDate);
+            Assert.AreEqual("Gardner, Cory", data.Representative);
+            Assert.AreEqual(OrderDirection.Sell, data.Transaction);
+            Assert.AreEqual(Congress.Senate, data.House);
+            Assert.AreEqual(Party.Republican, data.Party);
+            Assert.AreEqual("Alaska", data.State);
+            Assert.IsTrue(string.IsNullOrWhiteSpace(data.District));
+        }
+
         [Test]
         public void JsonRoundTrip()
         {
@@ -59,6 +91,7 @@ namespace QuantConnect.DataLibrary.Tests
 
             AssertAreEqual(expected, result);
         }
+
 
         [Test]
         public void Clone()
@@ -145,6 +178,18 @@ namespace QuantConnect.DataLibrary.Tests
                     House = Congress.Senate,
                 }
             };
+        }
+
+        private static void AssertData(QuiverCongressDataPoint data)
+        {
+            Assert.AreEqual(new DateTime(2023, 9, 18), data.ReportDate);
+            Assert.AreEqual(new DateTime(2023, 8, 22), data.TransactionDate);
+            Assert.AreEqual("Gardner, Cory", data.Representative);
+            Assert.AreEqual(OrderDirection.Sell, data.Transaction);
+            Assert.AreEqual(Congress.Senate, data.House);
+            Assert.AreEqual(Party.Republican, data.Party);
+            Assert.AreEqual("Alaska", data.State);
+            Assert.IsTrue(string.IsNullOrWhiteSpace(data.District));
         }
     }
 }
