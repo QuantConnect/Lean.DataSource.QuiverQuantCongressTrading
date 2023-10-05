@@ -14,6 +14,7 @@
 */
 
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
@@ -40,21 +41,21 @@ namespace QuantConnect.DataSource
         /// <summary>
         /// The date the transaction was reported. Value will always exist.
         /// </summary>
-        [JsonProperty(PropertyName = "ReportDate")]
+        [JsonProperty(PropertyName = "Filed")]
         [JsonConverter(typeof(DateTimeJsonConverter), "yyyy-MM-dd")]
         public DateTime? ReportDate { get; set; }
 
         /// <summary>
         /// The date the transaction took place
         /// </summary>
-        [JsonProperty(PropertyName = "TransactionDate")]
+        [JsonProperty(PropertyName = "Traded")]
         [JsonConverter(typeof(DateTimeJsonConverter), "yyyy-MM-dd")]
         public DateTime TransactionDate { get; set; }
 
         /// <summary>
         /// The Representative making the transaction
         /// </summary>
-        [JsonProperty(PropertyName = "Representative")]
+        [JsonProperty(PropertyName = "Name")]
         public string Representative { get; set; }
 
         /// <summary>
@@ -65,18 +66,41 @@ namespace QuantConnect.DataSource
         public OrderDirection Transaction { get; set; }
 
         /// <summary>
-        /// The amount of the transaction (in USD)
+        /// The amount of the transaction (in USD). The Representative can report a range (see <see cref="MaximumAmount"/>).
         /// </summary>
-        [JsonProperty(PropertyName = "Amount")]
         public decimal? Amount { get; set; }
 
         /// <summary>
-        /// The House of Congress that the trader belongs to
+        /// The maximum amount of the transaction (in USD). The Representative can report a range (see <see cref="Amount"/>).
         /// </summary>
-        [JsonProperty(PropertyName = "House")]
+        public decimal? MaximumAmount { get; set; }
+
+        /// <summary>
+        /// The Chamber of Congress that the trader belongs to
+        /// </summary>
+        [JsonProperty(PropertyName = "Chamber")]
         [JsonConverter(typeof(StringEnumConverter))]
         public Congress House { get; set; }
-        
+
+        /// <summary>
+        /// The political party that the trader belongs to
+        /// </summary>
+        [JsonProperty(PropertyName = "Party")]
+        [JsonConverter(typeof(StringEnumConverter))]
+        public Party Party { get; set; }
+
+        /// <summary>
+        /// The district that the trader belongs to (null or empty for Senators)
+        /// </summary>
+        [JsonProperty(PropertyName = "District")]
+        public string District { get; set; }
+
+        /// <summary>
+        /// The state that the trader belongs to
+        /// </summary>
+        [JsonProperty(PropertyName = "State")]
+        public string State { get; set; }
+
         /// <summary>
         /// The time the data point ends at and becomes available to the algorithm
         /// </summary>
@@ -95,15 +119,18 @@ namespace QuantConnect.DataSource
         /// <param name="csvLine">CSV line</param>
         public QuiverCongressDataPoint(string csvLine)
         {
-            // ReportDate[0], TransactionDate[1], Representative[2], Transaction[3], Amount[4],House[5]
+            // ReportDate[0], TransactionDate[1], Representative[2], Transaction[3],Amount[4],MaximumAmount[5],House[6],Party[7],District[8],State[9]
             var csv = csvLine.Split(',');
             ReportDate = Parse.DateTimeExact(csv[0], "yyyyMMdd");
             TransactionDate = Parse.DateTimeExact(csv[1], "yyyyMMdd");
-            Representative = csv[2];
+            Representative = csv[2].Replace(";",",");
             Transaction = (OrderDirection)Enum.Parse(typeof(OrderDirection), csv[3], true);
             Amount = csv[4].IfNotNullOrEmpty<decimal?>(s => decimal.Parse(s, NumberStyles.Any, CultureInfo.InvariantCulture));
-            House = (Congress)Enum.Parse(typeof(Congress), csv[5], true);
-
+            MaximumAmount = csv[5].IfNotNullOrEmpty<decimal?>(s => decimal.Parse(s, NumberStyles.Any, CultureInfo.InvariantCulture));
+            House = (Congress)Enum.Parse(typeof(Congress), csv[6], true);
+            Party = (Party)Enum.Parse(typeof(Party), csv[7], true);
+            District = csv[8];
+            State = csv[9];
             Time = ReportDate.Value;
         }
 
@@ -141,7 +168,11 @@ namespace QuantConnect.DataSource
                 Representative = Representative,
                 Transaction = Transaction,
                 Amount = Amount,
-                House = House
+                MaximumAmount = MaximumAmount,
+                House = House,
+                Party = Party,
+                District = District,
+                State = State,
             };
         }
 
@@ -165,6 +196,22 @@ namespace QuantConnect.DataSource
         public override bool RequiresMapping()
         {
             return true;
+        }
+
+        /// <summary>
+        /// Gets the default resolution for this data and security type
+        /// </summary>
+        public override Resolution DefaultResolution()
+        {
+            return Resolution.Daily;
+        }
+
+        /// <summary>
+        /// Gets the supported resolution for this data and security type
+        /// </summary>
+        public override List<Resolution> SupportedResolutions()
+        {
+            return DailyResolution;
         }
 
         /// <summary>

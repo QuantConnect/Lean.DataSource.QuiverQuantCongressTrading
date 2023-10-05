@@ -18,20 +18,26 @@ using System.Runtime.Serialization;
 namespace QuantConnect.DataSource
 {
     /// <summary>
-    /// United States of America Legislative Branch House of Congress
+    /// Political Parties of the United States of America
     /// </summary>
-    public enum Congress
+    public enum Party
     {
         /// <summary>
-        /// The United States Senate
+        /// Not affiliated with any political party.
         /// </summary>
-        [EnumMember(Value = "Senate")]
-        Senate,
+        [EnumMember(Value = "I")]
+        Independent,
 
         /// <summary>
-        /// The United States House of Representatives
+        /// Republican Party. https://en.wikipedia.org/wiki/Republican_Party_(United_States)
         /// </summary>
-        [EnumMember(Value = "House")]
-        Representatives
+        [EnumMember(Value = "R")]
+        Republican,
+
+        /// <summary>
+        /// Democratic Party. https://en.wikipedia.org/wiki/Democratic_Party_(United_States)
+        /// </summary>
+        [EnumMember(Value = "D")]
+        Democratic
     }
 }
