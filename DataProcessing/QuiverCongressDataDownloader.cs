@@ -109,8 +109,9 @@ namespace QuantConnect.DataProcessing
                         // Also, ReportDate might be null, but we use it for setting the EndTime
                         // of the QuiverCongress type. So if it doesn't exist, we don't know
                         // when the data was made available to us.
-                        var isStock = !string.IsNullOrWhiteSpace(x.TickerType) || x.TickerType != "Stock" || x.TickerType != "ST";
-                        if (x.Transaction == OrderDirection.Hold || x.ReportDate == null || x.ReportDate > today || !isStock)
+                        // Stock are represented by null/empty TickerType or "Stock" or "ST" values
+                        var isNotStock = !string.IsNullOrWhiteSpace(x.TickerType) && x.TickerType is not ("Stock" or "ST");
+                        if (x.Transaction == OrderDirection.Hold || x.ReportDate == null || x.ReportDate > today || isNotStock)
                         {
                             return false;
                         }
@@ -261,7 +262,7 @@ namespace QuantConnect.DataProcessing
 
             throw new Exception($"Request for {baseUrl}{url} failed with no more retries remaining (retry {MaxRetries}/{MaxRetries})");
         }
-        
+
         /// <summary>
         /// Saves contents to disk, deleting existing zip files
         /// </summary>
