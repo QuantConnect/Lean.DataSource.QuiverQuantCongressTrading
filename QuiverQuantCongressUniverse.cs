@@ -15,10 +15,8 @@
 */
 
 using System;
-using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
-using NodaTime;
 using QuantConnect.Data;
 using QuantConnect.Orders;
 using static QuantConnect.StringExtensions;
@@ -28,45 +26,8 @@ namespace QuantConnect.DataSource
     /// <summary>
     /// Universe Selection helper class for QuiverQuant Congress dataset
     /// </summary>
-    public class QuiverQuantCongressUniverse : BaseData
+    public class QuiverQuantCongressUniverse : QuiverCongressDataPoint
     {
-        private static readonly TimeSpan _period = TimeSpan.FromDays(1);
-        
-        /// <summary>
-        /// ReportDate
-        /// </summary>
-        public DateTime ReportDate => Time;
-
-        /// <summary>
-        /// TransactionDate
-        /// </summary>
-        public DateTime TransactionDate { get; set; }
-
-        /// <summary>
-        /// Representative
-        /// </summary>
-        public string Representative { get; set; }
-
-        /// <summary>
-        /// Month-over-month change in company's follower count
-        /// </summary>
-        public OrderDirection Transaction { get; set; }
-
-        /// <summary>
-        /// The amount of the transaction (in USD)
-        /// </summary>
-        public decimal? Amount { get; set; }
-
-        /// <summary>
-        /// The House of Congress that the trader belongs to
-        /// </summary>
-        public Congress House { get; set; }
-
-        /// <summary>
-        /// Time the data became available
-        /// </summary>
-        public override DateTime EndTime => Time + _period;
-
         /// <summary>
         /// Return the URL string source of the file. This will be converted to a stream
         /// </summary>
@@ -101,18 +62,23 @@ namespace QuantConnect.DataSource
         {
             var csv = line.Split(',');
             var amount = csv[5].IfNotNullOrEmpty<decimal?>(s => decimal.Parse(s, NumberStyles.Any, CultureInfo.InvariantCulture));
+            var maximumAmount = csv[6].IfNotNullOrEmpty<decimal?>(s => decimal.Parse(s, NumberStyles.Any, CultureInfo.InvariantCulture));
 
             return new QuiverQuantCongressUniverse
             {
+                ReportDate = date,
                 TransactionDate = Parse.DateTimeExact(csv[2], "yyyyMMdd"),
-                Representative = csv[3],
+                Representative = csv[3].Replace(";",","),
                 Transaction = (OrderDirection)Enum.Parse(typeof(OrderDirection), csv[4], true),
                 Amount = amount,
-                House = (Congress)Enum.Parse(typeof(Congress), csv[6], true),
-
+                MaximumAmount = maximumAmount,
+                House = (Congress)Enum.Parse(typeof(Congress), csv[7], true),
+                Party = (Party)Enum.Parse(typeof(Party), csv[8], true),
+                District = csv[9],
+                State = csv[10],
                 Symbol = new Symbol(SecurityIdentifier.Parse(csv[0]), csv[1]),
-                Time = date,
-                Value = amount ?? 0
+                Value = amount ?? 0,
+                Time = date
             };
         }
 
@@ -130,28 +96,9 @@ namespace QuantConnect.DataSource
         }
 
         /// <summary>
-        /// Gets the default resolution for this data and security type
+        /// Indicates if there is support for mapping
         /// </summary>
-        public override Resolution DefaultResolution()
-        {
-            return Resolution.Daily;
-        }
-
-        /// <summary>
-        /// Gets the supported resolution for this data and security type
-        /// </summary>
-        public override List<Resolution> SupportedResolutions()
-        {
-            return DailyResolution;
-        }
-
-        /// <summary>
-        /// Specifies the data time zone for this data type. This is useful for custom data types
-        /// </summary>
-        /// <returns>The <see cref="T:NodaTime.DateTimeZone" /> of this data type</returns>
-        public override DateTimeZone DataTimeZone()
-        {
-            return TimeZones.Utc;
-        }
+        /// <returns>True indicates mapping should be used</returns>
+        public override bool RequiresMapping() => false;
     }
 }

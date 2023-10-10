@@ -22,7 +22,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
-using System.Runtime.CompilerServices;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
@@ -33,7 +33,6 @@ using QuantConnect.Lean.Engine.DataFeeds;
 using QuantConnect.Logging;
 using QuantConnect.Orders;
 using QuantConnect.Util;
-using static QuantConnect.StringExtensions;
 
 namespace QuantConnect.DataProcessing
 {
@@ -93,7 +92,7 @@ namespace QuantConnect.DataProcessing
 
             try
             {
-                var rawCongressData = HttpRequester($"bulk/congresstrading").SynchronouslyAwaitTaskResult();
+                var rawCongressData = HttpRequester($"bulk/congresstrading?version=v2").SynchronouslyAwaitTaskResult();
                 if (string.IsNullOrWhiteSpace(rawCongressData))
                 {
                     Log.Trace($@"QuiverCongressDataDownloader.Run(): Received no data - {rawCongressData}");
@@ -102,7 +101,7 @@ namespace QuantConnect.DataProcessing
                 Log.Trace($@"QuiverCongressDataDownloader.Run(): Received data");
 
                 var congressTradesByDate = JsonConvert
-                    .DeserializeObject<List<RawQuiverCongressDataPoint>>(rawCongressData, _jsonSerializerSettings)
+                    .DeserializeObject<List<RawQuiverCongressDataPoint>>(rawCongressData, _jsonSerializerSettings)!
                     .Where(x =>
                     {
                         // We don't have enough information to disambiguate whether this transaction,
@@ -110,7 +109,9 @@ namespace QuantConnect.DataProcessing
                         // Also, ReportDate might be null, but we use it for setting the EndTime
                         // of the QuiverCongress type. So if it doesn't exist, we don't know
                         // when the data was made available to us.
-                        if (x.Transaction == OrderDirection.Hold || x.ReportDate == null || x.ReportDate > today)
+                        // Stock are represented by null/empty TickerType or "Stock" or "ST" values
+                        var isNotStock = !string.IsNullOrWhiteSpace(x.TickerType) && x.TickerType is not ("Stock" or "ST");
+                        if (x.Transaction == OrderDirection.Hold || x.ReportDate == null || x.ReportDate > today || isNotStock)
                         {
                             return false;
                         }
@@ -123,12 +124,11 @@ namespace QuantConnect.DataProcessing
                         // A Congressperson can make the same trade more than once per day
                         // To avoid confusion, we will group the same trades and sum their amount
                         var values = kvp.ToList();
-                        var duplicates = kvp.GroupBy(x => x.ToString()).Where(x => x.Count() > 1);
+                        var duplicates = kvp.GroupBy(x => $"{x.Ticker},{x}").Where(x => x.Count() > 1);
                         foreach (var duplicate in duplicates)
                         {
                             var trade = duplicate.FirstOrDefault();
-                            trade.Amount = values.Where(x => duplicate.Key == x.ToString()).Sum(x => x.Amount);
-                            values.RemoveAll(x => duplicate.Key == x.ToString());
+                            values.RemoveAll(x => duplicate.Key == $"{x.Ticker},{x}");
                             values.Add(trade);
                         }
                         return values;
@@ -159,12 +159,7 @@ namespace QuantConnect.DataProcessing
                             congressTradesByTicker.Add(ticker, new List<string>());
                         }
 
-                        var curRow = string.Join(",",
-                            $"{congressTrade.TransactionDate.ToStringInvariant("yyyyMMdd")}",
-                            $"{congressTrade.Representative.Trim()}",
-                            $"{congressTrade.Transaction}",
-                            $"{congressTrade.Amount.ToStringInvariant()}",
-                            $"{congressTrade.House}");
+                        var curRow = congressTrade.ToString();
 
                         congressTradesByTicker[ticker].Add($"{processDate:yyyyMMdd},{curRow}");
 
@@ -217,49 +212,46 @@ namespace QuantConnect.DataProcessing
         /// <exception cref="Exception">Failed to get data after exceeding retries</exception>
         private async Task<string> HttpRequester(string url)
         {
-            url = Uri.EscapeDataString(url);
             var baseUrl = "https://api.quiverquant.com/beta/";
 
             for (var retries = 1; retries <= MaxRetries; retries++)
             {
                 try
                 {
-                    using (var client = new HttpClient())
+                    using var client = new HttpClient();
+                    client.BaseAddress = new Uri(baseUrl);
+                    client.DefaultRequestHeaders.Clear();
+
+                    // You must supply your API key in the HTTP header,
+                    // otherwise you will receive a 403 Forbidden response
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Token", _clientKey);
+
+                    // Responses are in JSON: you need to specify the HTTP header Accept: application/json
+                    client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+                    // Makes sure we don't overrun Quiver rate limits accidentally
+                    _indexGate.WaitToProceed();
+
+                    var response = await client.GetAsync(url);
+                    if (response.StatusCode == HttpStatusCode.NotFound)
                     {
-                        client.BaseAddress = new Uri(baseUrl);
-                        client.DefaultRequestHeaders.Clear();
-
-                        // You must supply your API key in the HTTP header,
-                        // otherwise you will receive a 403 Forbidden response
-                        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Token", _clientKey);
-
-                        // Responses are in JSON: you need to specify the HTTP header Accept: application/json
-                        client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-
-                        // Makes sure we don't overrun Quiver rate limits accidentally
-                        _indexGate.WaitToProceed();
-
-                        var response = await client.GetAsync(url);
-                        if (response.StatusCode == HttpStatusCode.NotFound)
-                        {
-                            Log.Error($"QuiverCongressDataDownloader.HttpRequester(): Files not found at url: {url}");
-                            response.DisposeSafely();
-                            return string.Empty;
-                        }
-
-                        if (response.StatusCode == HttpStatusCode.Unauthorized)
-                        {
-                            var finalRequestUri = response.RequestMessage.RequestUri; // contains the final location after following the redirect.
-                            response = client.GetAsync(finalRequestUri).Result; // Reissue the request. The DefaultRequestHeaders configured on the client will be used, so we don't have to set them again.
-                        }
-
-                        response.EnsureSuccessStatusCode();
-
-                        var result =  await response.Content.ReadAsStringAsync();
+                        Log.Error($"QuiverCongressDataDownloader.HttpRequester(): Files not found at url: {url}");
                         response.DisposeSafely();
-
-                        return result;
+                        return string.Empty;
                     }
+
+                    if (response.StatusCode == HttpStatusCode.Unauthorized)
+                    {
+                        var finalRequestUri = response.RequestMessage.RequestUri; // contains the final location after following the redirect.
+                        response = client.GetAsync(finalRequestUri).Result; // Reissue the request. The DefaultRequestHeaders configured on the client will be used, so we don't have to set them again.
+                    }
+
+                    response.EnsureSuccessStatusCode();
+
+                    var result = await response.Content.ReadAsStringAsync();
+                    response.DisposeSafely();
+
+                    return result;
                 }
                 catch (Exception e)
                 {
@@ -301,17 +293,54 @@ namespace QuantConnect.DataProcessing
             public string Ticker { get; set; }
 
             /// <summary>
+            /// The security type
+            /// </summary>
+            [JsonProperty(PropertyName = "TickerType")]
+            public string TickerType { get; set; }
+
+            /// <summary>
+            /// The trade size range
+            /// </summary>
+            [JsonProperty(PropertyName = "Trade_Size_USD")]
+            public string TradeSizeRange { get; set; }
+
+            /// <summary>
             /// Formats a string with the Raw Quiver Congress information.
             /// This information does not include the amount, since we will use this
             /// representation to group the trades of the same day, person and direction 
             /// </summary>
             public override string ToString()
             {
-                return Invariant($"{Ticker}({ReportDate}) :: ") +
-                       Invariant($"Transaction Date: {TransactionDate} ") +
-                       Invariant($"Representative: {Representative} ") +
-                       Invariant($"House: {House} ") +
-                       Invariant($"Transaction: {Transaction} ");
+                var isSingle = true;
+                var tradeSizeRange = new StringBuilder();
+                foreach (var c in TradeSizeRange.AsSpan())
+                {
+                    if (char.IsDigit(c))
+                    {
+                        tradeSizeRange.Append(c);
+                    }
+                    else if (c == '-')
+                    {
+                        isSingle = false;
+                        tradeSizeRange.Append(',');
+                    }
+                }
+
+                if (isSingle)
+                {
+                    tradeSizeRange.Append(',');
+                }
+
+                return string.Join(",",
+                        $"{TransactionDate.ToStringInvariant("yyyyMMdd")}",
+                        $"{Representative.Trim().Replace(",", ";")}",
+                        $"{Transaction}",
+                        $"{tradeSizeRange}",
+                        $"{House}",
+                        $"{Party}",
+                        $"{District?.Trim()}",
+                        $"{State.Trim()}"
+                    );
             }
         }
 

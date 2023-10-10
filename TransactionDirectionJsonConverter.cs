@@ -15,7 +15,6 @@
 
 using QuantConnect.Orders;
 using QuantConnect.Util;
-using System;
 
 namespace QuantConnect.DataSource
 {
@@ -41,23 +40,19 @@ namespace QuantConnect.DataSource
         /// <returns>Resulting OrderDirection</returns>
         protected override OrderDirection Convert(string value)
         {
-            switch (value.ToLowerInvariant())
+            value = value.ToLowerInvariant();
+
+            return value switch
             {
                 // Exchange transactions are transactions where one stock is
                 // exchanged for another. This could be the dumping of an asset,
                 // or the acquisition of an asset. Since we don't have enough
                 // data to disambiguiate which direction the transaction goes,
                 // let's return `OrderDirection.Hold` and filter those out.
-                case "purchase":
-                case "buy":
-                    return OrderDirection.Buy;
-                case "sale":
-                case "sell":
-                    return OrderDirection.Sell;
-                case "exchange":
-                default:
-                    return OrderDirection.Hold;
-            }
+                { } when value.StartsWith("purchase") || value.StartsWith("buy") => OrderDirection.Buy,
+                { } when value.StartsWith("sale") || value.StartsWith("sell") => OrderDirection.Sell,
+                _ => OrderDirection.Hold
+            };
         }
     }
 }
