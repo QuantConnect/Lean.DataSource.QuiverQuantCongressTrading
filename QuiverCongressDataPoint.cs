@@ -121,17 +121,17 @@ namespace QuantConnect.DataSource
         {
             // ReportDate[0], TransactionDate[1], Representative[2], Transaction[3],Amount[4],MaximumAmount[5],House[6],Party[7],District[8],State[9]
             var csv = csvLine.Split(',');
-            ReportDate = Parse.DateTimeExact(csv[0], "yyyyMMdd");
-            TransactionDate = Parse.DateTimeExact(csv[1], "yyyyMMdd");
-            Representative = csv[2].Replace(";",",");
-            Transaction = (OrderDirection)Enum.Parse(typeof(OrderDirection), csv[3], true);
-            Amount = csv[4].IfNotNullOrEmpty<decimal?>(s => decimal.Parse(s, NumberStyles.Any, CultureInfo.InvariantCulture));
-            MaximumAmount = csv[5].IfNotNullOrEmpty<decimal?>(s => decimal.Parse(s, NumberStyles.Any, CultureInfo.InvariantCulture));
-            House = (Congress)Enum.Parse(typeof(Congress), csv[6], true);
-            Party = (Party)Enum.Parse(typeof(Party), csv[7], true);
-            District = csv[8];
-            State = csv[9];
-            Time = ReportDate.Value;
+            Time = Parse.DateTimeExact(csv[0], "yyyyMMdd");
+            ReportDate = Parse.DateTimeExact(csv[1], "yyyyMMdd");
+            TransactionDate = Parse.DateTimeExact(csv[2], "yyyyMMdd");
+            Representative = csv[3].Replace(";",",");
+            Transaction = (OrderDirection)Enum.Parse(typeof(OrderDirection), csv[4], true);
+            Amount = csv[5].IfNotNullOrEmpty<decimal?>(s => decimal.Parse(s, NumberStyles.Any, CultureInfo.InvariantCulture));
+            MaximumAmount = csv[6].IfNotNullOrEmpty<decimal?>(s => decimal.Parse(s, NumberStyles.Any, CultureInfo.InvariantCulture));
+            House = (Congress)Enum.Parse(typeof(Congress), csv[7], true);
+            Party = (Party)Enum.Parse(typeof(Party), csv[8], true);
+            District = csv[9];
+            State = csv[10];
         }
 
         /// <summary>

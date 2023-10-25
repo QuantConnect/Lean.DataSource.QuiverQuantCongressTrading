@@ -19,7 +19,7 @@ using QuantConnect.Util;
 namespace QuantConnect.DataSource
 {
     /// <summary>
-    /// Converts Quiver Quantitative <see cref="TransactionDirection"/> to <see cref="OrderDirection"/>
+    /// Converts Quiver Quantitative <see cref="QuiverCongressDataPoint.Transaction"/> to <see cref="OrderDirection"/>
     /// </summary>
     public class TransactionDirectionJsonConverter : TypeChangeJsonConverter<OrderDirection, string>
     {
