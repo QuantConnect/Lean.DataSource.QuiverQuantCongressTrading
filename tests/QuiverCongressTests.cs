@@ -50,7 +50,7 @@ namespace QuantConnect.DataLibrary.Tests
         public void ReaderTest()
         {
             // This information is not factual and is only used for testing purposes
-            var content = "20230918,20230822,Gardner; Cory,Sell,15001,50000,Senate,Republican,,Alaska";
+            var content = "20230918,20230918,20230822,Gardner; Cory,Sell,15001,50000,Senate,Republican,,Alaska";
             var instance = CreateNewInstance();
             var config = new SubscriptionDataConfig(typeof(QuiverCongressDataPoint), _symbol, Resolution.Daily,
                 DateTimeZone.Utc, DateTimeZone.Utc, false, false, false);
@@ -63,15 +63,16 @@ namespace QuantConnect.DataLibrary.Tests
         public void UniverseReaderTest()
         {
             // This information is not factual and is only used for testing purposes
-            var reportDate = new DateTime(2023, 9, 18);
-            var content = "AAPL R735QTJ8XC9X,AAPL,20230822,Gardner; Cory,Sell,15001,50000,Senate,Republican,,Alaska";
+            var date = new DateTime(2023, 9, 18);
+            var content = "AAPL R735QTJ8XC9X,AAPL,20230918,20230822,Gardner; Cory,Sell,15001,50000,Senate,Republican,,Alaska";
             var instance = new QuiverQuantCongressUniverse();
             var config = new SubscriptionDataConfig(typeof(QuiverQuantCongressUniverse), Symbol.None, Resolution.Daily,
                 DateTimeZone.Utc, DateTimeZone.Utc, false, false, false);
-            var data = instance.Reader(config, content, reportDate, false) as QuiverQuantCongressUniverse;
+            var data = instance.Reader(config, content, date, false) as QuiverQuantCongressUniverse;
 
-            Assert.AreEqual(reportDate, data.ReportDate);
+            Assert.AreEqual(date, data.Time);
             Assert.AreEqual(_symbol, data.Symbol);
+            Assert.AreEqual(new DateTime(2023, 9, 18), data.ReportDate);
             Assert.AreEqual(new DateTime(2023, 8, 22), data.TransactionDate);
             Assert.AreEqual("Gardner, Cory", data.Representative);
             Assert.AreEqual(OrderDirection.Sell, data.Transaction);
