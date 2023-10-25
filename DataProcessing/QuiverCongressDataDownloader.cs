@@ -51,6 +51,11 @@ namespace QuantConnect.DataProcessing
         private readonly string _clientKey;
         private readonly bool _canCreateUniverseFiles;
 
+        // QuiverQuant started to record the "Quiver_Upload_Time" on Aug 28th 2023
+        // All data prior to that date has this value.
+        // We will timestamp the data with the report date in this case
+        private readonly long _startOfUploadDateTicks = new DateTime(2023, 08, 28).Ticks;
+
         private readonly JsonSerializerSettings _jsonSerializerSettings = new()
         {
             DateTimeZoneHandling = DateTimeZoneHandling.Utc
@@ -104,6 +109,11 @@ namespace QuantConnect.DataProcessing
                     .DeserializeObject<List<RawQuiverCongressDataPoint>>(rawCongressData, _jsonSerializerSettings)!
                     .Where(x =>
                     {
+                        if (x.UploadDate == null || x.UploadDate.Value.Ticks <= _startOfUploadDateTicks)
+                        {
+                            x.UploadDate = x.ReportDate;
+                        }
+
                         // We don't have enough information to disambiguate whether this transaction,
                         // known as an "Exchange", is the acquisition or dumping of an asset.
                         // Also, ReportDate might be null, but we use it for setting the EndTime
@@ -111,14 +121,14 @@ namespace QuantConnect.DataProcessing
                         // when the data was made available to us.
                         // Stock are represented by null/empty TickerType or "Stock" or "ST" values
                         var isNotStock = !string.IsNullOrWhiteSpace(x.TickerType) && x.TickerType is not ("Stock" or "ST");
-                        if (x.Transaction == OrderDirection.Hold || x.ReportDate == null || x.ReportDate > today || isNotStock)
+                        if (x.Transaction == OrderDirection.Hold || x.UploadDate == null || x.UploadDate > today || isNotStock)
                         {
                             return false;
                         }
                         return true;
                     })
-                    .OrderBy(x => x.ReportDate.Value)
-                    .GroupBy(x => x.ReportDate.Value)
+                    .OrderBy(x => x.UploadDate.Value)
+                    .GroupBy(x => x.UploadDate.Value)
                     .ToDictionary(kvp => kvp.Key, kvp =>
                     {
                         // A Congressperson can make the same trade more than once per day
@@ -305,6 +315,13 @@ namespace QuantConnect.DataProcessing
             public string TradeSizeRange { get; set; }
 
             /// <summary>
+            /// The date this data was upload to QuiverQuant's database
+            /// </summary>
+            [JsonProperty(PropertyName = "Quiver_Upload_Time")]
+            [JsonConverter(typeof(DateTimeJsonConverter), "yyyy-MM-dd")]
+            public DateTime? UploadDate { get; set; }
+
+            /// <summary>
             /// Formats a string with the Raw Quiver Congress information.
             /// This information does not include the amount, since we will use this
             /// representation to group the trades of the same day, person and direction 
@@ -332,6 +349,7 @@ namespace QuantConnect.DataProcessing
                 }
 
                 return string.Join(",",
+                        $"{ReportDate.ToStringInvariant("yyyyMMdd")}",
                         $"{TransactionDate.ToStringInvariant("yyyyMMdd")}",
                         $"{Representative.Trim().Replace(",", ";")}",
                         $"{Transaction}",
