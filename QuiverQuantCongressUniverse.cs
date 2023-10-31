@@ -100,5 +100,29 @@ namespace QuantConnect.DataSource
         /// </summary>
         /// <returns>True indicates mapping should be used</returns>
         public override bool RequiresMapping() => false;
+
+        /// <summary>
+        /// Clones the data
+        /// </summary>
+        /// <returns>A clone of the object</returns>
+        public override BaseData Clone()
+        {
+            return new QuiverQuantCongressUniverse
+            {
+                Symbol = Symbol,
+                Time = Time,
+                EndTime = EndTime,
+                ReportDate = ReportDate,
+                TransactionDate = TransactionDate,
+                Representative = Representative,
+                Transaction = Transaction,
+                Amount = Amount,
+                MaximumAmount = MaximumAmount,
+                House = House,
+                Party = Party,
+                District = District,
+                State = State,
+            };
+        }
     }
 }

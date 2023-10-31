@@ -119,7 +119,7 @@ namespace QuantConnect.DataSource
         /// <param name="csvLine">CSV line</param>
         public QuiverCongressDataPoint(string csvLine)
         {
-            // ReportDate[0], TransactionDate[1], Representative[2], Transaction[3],Amount[4],MaximumAmount[5],House[6],Party[7],District[8],State[9]
+            // Time[0], ReportDate[1], TransactionDate[2], Representative[3], Transaction[4],Amount[5],MaximumAmount[7],House[7],Party[8],District[9],State[10]
             var csv = csvLine.Split(',');
             Time = Parse.DateTimeExact(csv[0], "yyyyMMdd");
             ReportDate = Parse.DateTimeExact(csv[1], "yyyyMMdd");
