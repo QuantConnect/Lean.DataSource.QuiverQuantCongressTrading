@@ -8,17 +8,27 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-20.04
-    container:
-        image: quantconnect/lean:foundation
+    runs-on: ubuntu-20.04    
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout
+        uses: actions/checkout@v2
 
-      - name: BuildDataSource
+      - name: Free space
+        run: df -h && rm -rf /opt/hostedtoolcache* && df -h
+
+      - name: Pull Foundation Image
+        uses: addnab/docker-run-action@v3
+        with:
+          image: quantconnect/lean:foundation
+
+      - name: Build Data Source
         run: dotnet build ./QuantConnect.DataSource.csproj /p:Configuration=Release /v:quiet /p:WarningLevel=1
 
-      - name: BuildTests
+      - name: Build Tests
         run: dotnet build ./tests/Tests.csproj /p:Configuration=Release /v:quiet /p:WarningLevel=1
 
       - name: Run Tests
         run: dotnet test ./tests/bin/Release/net6.0/Tests.dll
+
+      - name: Build Data Processing
+        run: dotnet build ./DataProcessing/DataProcessing.csproj /p:Configuration=Release /v:quiet /p:WarningLevel=1
