@@ -61,21 +61,22 @@ namespace QuantConnect.DataSource
         public override BaseData Reader(SubscriptionDataConfig config, string line, DateTime date, bool isLiveMode)
         {
             var csv = line.Split(',');
-            var amount = csv[6].IfNotNullOrEmpty<decimal?>(s => decimal.Parse(s, NumberStyles.Any, CultureInfo.InvariantCulture));
-            var maximumAmount = csv[7].IfNotNullOrEmpty<decimal?>(s => decimal.Parse(s, NumberStyles.Any, CultureInfo.InvariantCulture));
+            var amount = csv[7].IfNotNullOrEmpty<decimal?>(s => decimal.Parse(s, NumberStyles.Any, CultureInfo.InvariantCulture));
+            var maximumAmount = csv[8].IfNotNullOrEmpty<decimal?>(s => decimal.Parse(s, NumberStyles.Any, CultureInfo.InvariantCulture));
 
             return new QuiverQuantCongressUniverse
             {
-                ReportDate = Parse.DateTimeExact(csv[2], "yyyyMMdd"),
-                TransactionDate = Parse.DateTimeExact(csv[3], "yyyyMMdd"),
-                Representative = csv[4].Replace(";",","),
-                Transaction = (OrderDirection)Enum.Parse(typeof(OrderDirection), csv[5], true),
+                RecordDate = Parse.DateTimeExact(csv[2], "yyyyMMdd"),
+                ReportDate = Parse.DateTimeExact(csv[3], "yyyyMMdd"),
+                TransactionDate = Parse.DateTimeExact(csv[4], "yyyyMMdd"),
+                Representative = csv[5].Replace(";",","),
+                Transaction = (OrderDirection)Enum.Parse(typeof(OrderDirection), csv[6], true),
                 Amount = amount,
                 MaximumAmount = maximumAmount,
-                House = (Congress)Enum.Parse(typeof(Congress), csv[8], true),
-                Party = (Party)Enum.Parse(typeof(Party), csv[9], true),
-                District = csv[10],
-                State = csv[11],
+                House = (Congress)Enum.Parse(typeof(Congress), csv[9], true),
+                Party = (Party)Enum.Parse(typeof(Party), csv[10], true),
+                District = csv[11],
+                State = csv[12],
                 Symbol = new Symbol(SecurityIdentifier.Parse(csv[0]), csv[1]),
                 Value = amount ?? 0,
                 Time = date
@@ -112,6 +113,7 @@ namespace QuantConnect.DataSource
                 Symbol = Symbol,
                 Time = Time,
                 EndTime = EndTime,
+                RecordDate = RecordDate,
                 ReportDate = ReportDate,
                 TransactionDate = TransactionDate,
                 Representative = Representative,
