@@ -51,6 +51,10 @@ namespace QuantConnect.DataProcessing
         private readonly string _clientKey;
         private readonly bool _canCreateUniverseFiles;
 
+        // The dataset starts on Jul 26th 2020
+        // We will timestamp the data with the report date in this case
+        private readonly long _startOfDataSetDateTicks = new DateTime(2020, 07, 26).Ticks;
+
         // QuiverQuant started to record the "Quiver_Upload_Time" on Aug 28th 2023
         // All data prior to that date has this value.
         // We will timestamp the data with the report date in this case
@@ -109,26 +113,54 @@ namespace QuantConnect.DataProcessing
                     .DeserializeObject<List<RawQuiverCongressDataPoint>>(rawCongressData, _jsonSerializerSettings)!
                     .Where(x =>
                     {
-                        if (x.UploadDate == null || x.UploadDate.Value.Ticks <= _startOfUploadDateTicks)
-                        {
-                            x.UploadDate = x.ReportDate;
-                        }
-
                         // We don't have enough information to disambiguate whether this transaction,
                         // known as an "Exchange", is the acquisition or dumping of an asset.
-                        // Also, ReportDate might be null, but we use it for setting the EndTime
-                        // of the QuiverCongress type. So if it doesn't exist, we don't know
-                        // when the data was made available to us.
-                        // Stock are represented by null/empty TickerType or "Stock" or "ST" values
-                        var isNotStock = !string.IsNullOrWhiteSpace(x.TickerType) && x.TickerType is not ("Stock" or "ST");
-                        if (x.Transaction == OrderDirection.Hold || x.UploadDate == null || x.UploadDate > today || isNotStock)
+                        if (x.Transaction == OrderDirection.Hold)
                         {
                             return false;
                         }
-                        return true;
+
+                        // Stock are represented by null/empty TickerType or "Stock" or "ST" values
+                        if (!string.IsNullOrWhiteSpace(x.TickerType) && x.TickerType is not ("Stock" or "ST"))
+                        {
+                            return false;
+                        }
+
+                        // Also, ReportDate might be null, but we use it for setting the EndTime
+                        // of the QuiverCongress type. So if it doesn't exist, we don't know
+                        // when the data was made available to us.
+                        if (x.ReportDate == null || x.ReportDate > today)
+                        {
+                            return false;
+                        }
+
+                        if (x.ReportDate.Value.Ticks <= _startOfDataSetDateTicks)
+                        {
+                            x.LastModified = x.UploadDate = x.ReportDate.Value;
+                        }
+
+                        if (x.LastModified == null || x.LastModified.Value.Ticks <= _startOfUploadDateTicks)
+                        {
+                            x.LastModified = x.UploadDate;
+                        }
+
+                        // It's a data bug when the report date is greater than the last modified date
+                        if (x.LastModified == null || x.ReportDate > x.LastModified)
+                        {
+                            x.LastModified = x.ReportDate;
+                        }
+
+                        // The upload date can be greater than report date. It means the report date was incorrect and an update has fixed it
+                        // so we are only fixing the possible null case
+                        if (x.UploadDate == null)
+                        {
+                            x.ReportDate = x.LastModified;
+                        }
+
+                        return x.LastModified != null && x.LastModified < today;
                     })
-                    .OrderBy(x => x.UploadDate.Value)
-                    .GroupBy(x => x.UploadDate.Value)
+                    .OrderBy(x => x.LastModified.Value)
+                    .GroupBy(x => x.LastModified.Value)
                     .ToDictionary(kvp => kvp.Key, kvp =>
                     {
                         // A Congressperson can make the same trade more than once per day
@@ -322,6 +354,13 @@ namespace QuantConnect.DataProcessing
             public DateTime? UploadDate { get; set; }
 
             /// <summary>
+            /// The date this data was last modified on QuiverQuant's database
+            /// </summary>
+            [JsonProperty(PropertyName = "last_modified")]
+            [JsonConverter(typeof(DateTimeJsonConverter), "yyyy-MM-dd")]
+            public DateTime? LastModified { get; set; }
+
+            /// <summary>
             /// Formats a string with the Raw Quiver Congress information.
             /// This information does not include the amount, since we will use this
             /// representation to group the trades of the same day, person and direction 
@@ -349,6 +388,7 @@ namespace QuantConnect.DataProcessing
                 }
 
                 return string.Join(",",
+                        $"{UploadDate.ToStringInvariant("yyyyMMdd")}",
                         $"{ReportDate.ToStringInvariant("yyyyMMdd")}",
                         $"{TransactionDate.ToStringInvariant("yyyyMMdd")}",
                         $"{Representative.Trim().Replace(",", ";")}",

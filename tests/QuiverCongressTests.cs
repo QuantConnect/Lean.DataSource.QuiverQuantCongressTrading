@@ -50,7 +50,7 @@ namespace QuantConnect.DataLibrary.Tests
         public void ReaderTest()
         {
             // This information is not factual and is only used for testing purposes
-            var content = "20230918,20230918,20230822,Gardner; Cory,Sell,15001,50000,Senate,Republican,,Alaska";
+            var content = "20230918,20230918,20230918,20230822,Gardner; Cory,Sell,15001,50000,Senate,Republican,,Alaska";
             var instance = CreateNewInstance();
             var config = new SubscriptionDataConfig(typeof(QuiverCongressDataPoint), _symbol, Resolution.Daily,
                 DateTimeZone.Utc, DateTimeZone.Utc, false, false, false);
@@ -64,7 +64,7 @@ namespace QuantConnect.DataLibrary.Tests
         {
             // This information is not factual and is only used for testing purposes
             var date = new DateTime(2023, 9, 18);
-            var content = "AAPL R735QTJ8XC9X,AAPL,20230918,20230822,Gardner; Cory,Sell,15001,50000,Senate,Republican,,Alaska";
+            var content = $"AAPL R735QTJ8XC9X,AAPL,{date:yyyyMMdd},20230918,20230822,Gardner; Cory,Sell,15001,50000,Senate,Republican,,Alaska";
             var instance = new QuiverQuantCongressUniverse();
             var config = new SubscriptionDataConfig(typeof(QuiverQuantCongressUniverse), Symbol.None, Resolution.Daily,
                 DateTimeZone.Utc, DateTimeZone.Utc, false, false, false);
