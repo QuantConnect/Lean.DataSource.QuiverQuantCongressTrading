@@ -367,8 +367,16 @@ namespace QuantConnect.DataProcessing
             /// </summary>
             public override string ToString()
             {
-                var isSingle = true;
+                var (min, max) = (double.MaxValue, double.MinValue);
                 var tradeSizeRange = new StringBuilder();
+                void setRange()
+                {
+                    var size = double.Parse(tradeSizeRange.ToString());
+                    min = Math.Min(min, size);
+                    max = Math.Max(max, size);
+                    tradeSizeRange.Clear();
+                }
+
                 foreach (var c in TradeSizeRange.AsSpan())
                 {
                     if (char.IsDigit(c))
@@ -377,15 +385,11 @@ namespace QuantConnect.DataProcessing
                     }
                     else if (c == '-')
                     {
-                        isSingle = false;
-                        tradeSizeRange.Append(',');
+                        setRange();
                     }
                 }
 
-                if (isSingle)
-                {
-                    tradeSizeRange.Append(',');
-                }
+                setRange();
 
                 return string.Join(",",
                         $"{UploadDate.ToStringInvariant("yyyyMMdd")}",
@@ -393,7 +397,7 @@ namespace QuantConnect.DataProcessing
                         $"{TransactionDate.ToStringInvariant("yyyyMMdd")}",
                         $"{Representative.Trim().Replace(",", ";")}",
                         $"{Transaction}",
-                        $"{tradeSizeRange}",
+                        min == max ? $"{min}," : $"{min},{max}",
                         $"{House}",
                         $"{Party}",
                         $"{District?.Trim()}",
