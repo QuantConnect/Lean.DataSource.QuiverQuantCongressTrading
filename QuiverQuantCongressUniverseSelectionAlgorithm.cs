@@ -35,18 +35,32 @@ namespace QuantConnect.Algorithm.CSharp
             SetCash(100000);
 
             // add a custom universe data source (defaults to usa-equity)
-            AddUniverse<QuiverQuantCongressUniverse>("QuiverQuantCongresssUniverse", Resolution.Daily, data =>
+            var universe = AddUniverse<QuiverQuantCongressUniverse>(data =>
             {
-                foreach (var datum in data)
+                foreach (QuiverCongressDataPoint datum in data)
                 {
                     Log($"{datum.Symbol},{datum.Representative},{datum.Amount},{datum.Transaction}");
                 }
 
                 // define our selection criteria
-                return from d in data 
-                    where d.Amount > 200000 && d.Transaction == OrderDirection.Buy 
-                    select d.Symbol;
+                return from QuiverCongressDataPoint d in data
+                       where d.Amount > 200000 && d.Transaction == OrderDirection.Buy
+                       select d.Symbol;
             });
+
+            var history = History(universe, 1).ToList();
+            if (history.Count != 1)
+            {
+                throw new System.Exception($"Unexpected historical data count!");
+            }
+            foreach (var dataForDate in history)
+            {
+                var coarseData = dataForDate.ToList();
+                if (coarseData.Count < 1)
+                {
+                    throw new System.Exception($"Unexpected historical universe data!");
+                }
+            }
         }
         
         public override void OnSecuritiesChanged(SecurityChanges changes)

@@ -23,7 +23,15 @@ class QuiverQuantCongresssUniverseAlgorithm(QCAlgorithm):
         self.SetCash(100000)
 
         # add a custom universe data source (defaults to usa-equity)
-        self.AddUniverse(QuiverQuantCongressUniverse, "QuiverQuantCongresssUniverse", Resolution.Daily, self.UniverseSelection)
+        universe = self.AddUniverse(QuiverQuantCongressUniverse, self.UniverseSelection)
+
+        history = self.History(universe, TimeSpan(1, 0, 0, 0))
+        if len(history) != 1:
+            raise ValueError(f"Unexpected history count {len(history)}! Expected 1")
+
+        for dataForDate in history:
+            if len(dataForDate) < 1:
+                raise ValueError(f"Unexpected historical universe data!")
 
     def UniverseSelection(self, data):
         for datum in data:

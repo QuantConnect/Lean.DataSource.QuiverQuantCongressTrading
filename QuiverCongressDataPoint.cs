@@ -173,7 +173,6 @@ namespace QuantConnect.DataSource
             {
                 Symbol = Symbol,
                 Time = Time,
-                EndTime = EndTime,
                 RecordDate = RecordDate,
                 ReportDate = ReportDate,
                 TransactionDate = TransactionDate,

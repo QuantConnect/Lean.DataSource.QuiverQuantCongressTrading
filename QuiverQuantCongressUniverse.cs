@@ -17,6 +17,7 @@
 using System;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using QuantConnect.Data;
 using QuantConnect.Orders;
 using static QuantConnect.StringExtensions;
@@ -26,7 +27,7 @@ namespace QuantConnect.DataSource
     /// <summary>
     /// Universe Selection helper class for QuiverQuant Congress dataset
     /// </summary>
-    public class QuiverQuantCongressUniverse : QuiverCongressDataPoint
+    public class QuiverQuantCongressUniverse : QuiverCongress
     {
         /// <summary>
         /// Return the URL string source of the file. This will be converted to a stream
@@ -46,7 +47,8 @@ namespace QuantConnect.DataSource
                     "universe",
                     $"{date.ToStringInvariant(DateFormat.EightCharacter)}.csv"
                 ),
-                SubscriptionTransportMedium.LocalFile
+                SubscriptionTransportMedium.LocalFile,
+                FileFormat.FoldingCollection
             );
         }
 
@@ -64,7 +66,7 @@ namespace QuantConnect.DataSource
             var amount = csv[7].IfNotNullOrEmpty<decimal?>(s => decimal.Parse(s, NumberStyles.Any, CultureInfo.InvariantCulture));
             var maximumAmount = csv[8].IfNotNullOrEmpty<decimal?>(s => decimal.Parse(s, NumberStyles.Any, CultureInfo.InvariantCulture));
 
-            return new QuiverQuantCongressUniverse
+            return new QuiverCongressDataPoint
             {
                 RecordDate = Parse.DateTimeExact(csv[2], "yyyyMMdd"),
                 ReportDate = Parse.DateTimeExact(csv[3], "yyyyMMdd"),
@@ -88,12 +90,7 @@ namespace QuantConnect.DataSource
         /// </summary>
         public override string ToString()
         {
-            return Invariant($"{Symbol}({ReportDate}) :: ") +
-                   Invariant($"Transaction Date: {TransactionDate} ") +
-                   Invariant($"Representative: {Representative} ") +
-                   Invariant($"House: {House} ") +
-                   Invariant($"Transaction: {Transaction} ") +
-                   Invariant($"Amount: {Amount}");
+            return Invariant($"{EndTime:yyyyMMdd}: {string.Join(",", Data.Select(x => x.ToString()))}");
         }
 
         /// <summary>
@@ -113,17 +110,7 @@ namespace QuantConnect.DataSource
                 Symbol = Symbol,
                 Time = Time,
                 EndTime = EndTime,
-                RecordDate = RecordDate,
-                ReportDate = ReportDate,
-                TransactionDate = TransactionDate,
-                Representative = Representative,
-                Transaction = Transaction,
-                Amount = Amount,
-                MaximumAmount = MaximumAmount,
-                House = House,
-                Party = Party,
-                District = District,
-                State = State,
+                Data = Data,
             };
         }
     }
