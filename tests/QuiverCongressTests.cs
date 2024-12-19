@@ -68,7 +68,7 @@ namespace QuantConnect.DataLibrary.Tests
             var instance = new QuiverQuantCongressUniverse();
             var config = new SubscriptionDataConfig(typeof(QuiverQuantCongressUniverse), Symbol.None, Resolution.Daily,
                 DateTimeZone.Utc, DateTimeZone.Utc, false, false, false);
-            var data = instance.Reader(config, content, date, false) as QuiverQuantCongressUniverse;
+            var data = instance.Reader(config, content, date, false) as QuiverCongressDataPoint;
 
             Assert.AreEqual(date, data.Time);
             Assert.AreEqual(_symbol, data.Symbol);

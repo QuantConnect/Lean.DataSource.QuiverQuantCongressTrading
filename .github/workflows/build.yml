@@ -8,27 +8,30 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-20.04    
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v2
 
-      - name: Free space
-        run: df -h && rm -rf /opt/hostedtoolcache* && df -h
+      - name: Liberate disk space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true
+          large-packages: false
+          docker-images: false
+          swap-storage: false
 
-      - name: Pull Foundation Image
-        uses: addnab/docker-run-action@v3
+      - uses: addnab/docker-run-action@v3
         with:
           image: quantconnect/lean:foundation
-
-      - name: Build Data Source
-        run: dotnet build ./QuantConnect.DataSource.csproj /p:Configuration=Release /v:quiet /p:WarningLevel=1
-
-      - name: Build Tests
-        run: dotnet build ./tests/Tests.csproj /p:Configuration=Release /v:quiet /p:WarningLevel=1
-
-      - name: Run Tests
-        run: dotnet test ./tests/bin/Release/net6.0/Tests.dll
-
-      - name: Build Data Processing
-        run: dotnet build ./DataProcessing/DataProcessing.csproj /p:Configuration=Release /v:quiet /p:WarningLevel=1
+          options: --workdir /__w/Lean.DataSource.QuiverQuantCongressTrading/Lean.DataSource.QuiverQuantCongressTrading -v /home/runner/work:/__w
+          shell: bash
+          run: |
+            # Build Data Source
+            dotnet build ./QuantConnect.DataSource.csproj /p:Configuration=Release /v:quiet /p:WarningLevel=1 && \
+            # Build Tests
+            dotnet build ./tests/Tests.csproj /p:Configuration=Release /v:quiet /p:WarningLevel=1 && \
+            # Run Tests
+            dotnet test ./tests/bin/Release/net9.0/Tests.dll && \
+            # Build Data Processing
+            dotnet build ./DataProcessing/DataProcessing.csproj /p:Configuration=Release /v:quiet /p:WarningLevel=1
