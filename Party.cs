@@ -38,6 +38,12 @@ namespace QuantConnect.DataSource
         /// Democratic Party. https://en.wikipedia.org/wiki/Democratic_Party_(United_States)
         /// </summary>
         [EnumMember(Value = "D")]
-        Democratic
+        Democratic,
+
+        /// <summary>
+        /// Libertarian Party. https://en.wikipedia.org/wiki/Libertarian_Party_(United_States)
+        /// </summary>
+        [EnumMember(Value = "L")]
+        Libertarian
     }
 }

@@ -83,6 +83,27 @@ namespace QuantConnect.DataLibrary.Tests
         }
 
         [Test]
+        public void DeserializeLibertarianPartyFromJson()
+        {
+            var content = "{ \"Ticker\": \"CVS\", \"TickerType\": \"Stock\",\"Company\": \"CVS Corp\",\"Traded\": \"2023-08-22\",\"Transaction\": \"Sale (Full)\",\"Trade_Size_USD\": \"$1,001 - $15,000\",\"Status\": \"New\",\"Subholding\": null,\"Description\": null,\"Name\": \"Chase, Oliver\",\"Filed\": \"2023-09-18\",\"Party\": \"Libertarian\",\"District\": null,\"Chamber\": \"Senate\",\"Comments\": null,\"excess_return\": \"5.894026562437\",\"State\": \"Alaska\"}";
+            var data = JsonConvert.DeserializeObject<QuiverCongressDataPoint>(content, _jsonSerializerSettings);
+
+            Assert.AreEqual(Party.Libertarian, data.Party);
+        }
+
+        [Test]
+        public void ReaderLibertarianPartyTest()
+        {
+            var content = "20230918,20230918,20230918,20230822,Chase; Oliver,Sell,15001,50000,Senate,Libertarian,,Alaska";
+            var instance = CreateNewInstance();
+            var config = new SubscriptionDataConfig(typeof(QuiverCongressDataPoint), _symbol, Resolution.Daily,
+                DateTimeZone.Utc, DateTimeZone.Utc, false, false, false);
+            var data = instance.Reader(config, content, DateTime.UtcNow, false) as QuiverCongressDataPoint;
+
+            Assert.AreEqual(Party.Libertarian, data.Party);
+        }
+
+        [Test]
         public void JsonRoundTrip()
         {
             var expected = CreateNewInstance();

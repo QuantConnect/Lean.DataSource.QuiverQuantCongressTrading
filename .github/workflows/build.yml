@@ -32,6 +32,6 @@ jobs:
             # Build Tests
             dotnet build ./tests/Tests.csproj /p:Configuration=Release /v:quiet /p:WarningLevel=1 && \
             # Run Tests
-            dotnet test ./tests/bin/Release/net9.0/Tests.dll && \
+            dotnet test ./tests/bin/Release/net10.0/Tests.dll && \
             # Build Data Processing
             dotnet build ./DataProcessing/DataProcessing.csproj /p:Configuration=Release /v:quiet /p:WarningLevel=1

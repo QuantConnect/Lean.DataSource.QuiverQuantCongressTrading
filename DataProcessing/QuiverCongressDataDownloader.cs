@@ -194,6 +194,7 @@ namespace QuantConnect.DataProcessing
                                 .Replace("-DEFUNCT", string.Empty)
                                 .Replace(" ", string.Empty)
                                 .Replace("|", string.Empty)
+                                .Replace("/", ".")
                                 .Replace("-", ".");
                         
                         if (!congressTradesByTicker.TryGetValue(ticker, out var _))
